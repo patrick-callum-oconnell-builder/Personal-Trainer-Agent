@@ -14,6 +14,7 @@ from langchain_core.messages import SystemMessage, HumanMessage, AIMessage
 from langchain_core.tools import Tool
 from langchain_openai import ChatOpenAI
 from backend.state_manager import StateManager
+from backend.agent_state_machine import AgentStateMachine
 from backend.google_services.calendar import GoogleCalendarService
 from backend.google_services.gmail import GoogleGmailService
 from backend.google_services.fit import GoogleFitnessService
@@ -33,111 +34,6 @@ from backend.tools.preferences_tools import add_preference_to_kg
 
 load_dotenv()
 logger = logging.getLogger(__name__)
-
-# Define the system prompt for the agent
-SYSTEM_PROMPT = """You are a personal trainer AI assistant. Your goal is to help users achieve their fitness goals by:
-1. Understanding their fitness goals and current level
-2. Creating personalized workout plans
-3. Tracking their progress
-4. Providing motivation and guidance
-5. Adjusting plans based on feedback and progress
-
-You have access to various tools to help manage the user's fitness journey:
-- Calendar: Schedule workouts and track availability
-- Gmail: Send workout plans and progress updates
-- Tasks: Create and manage workout-related tasks
-- Drive: Store and organize workout plans and progress reports
-- Sheets: Track workout data and progress metrics
-- Maps: Find nearby gyms and workout locations
-
-IMPORTANT CONVERSATION CONTEXT HANDLING:
-1. Only use conversation history when:
-   - The user explicitly refers to a previous conversation (e.g., "that workout we discussed")
-   - The user uses pronouns like "it" or "that" that clearly refer to a previous topic
-   - The user asks to modify or change something previously discussed
-2. Treat as a new request when:
-   - The user makes a direct request without referring to previous context
-   - The user asks about a new topic or activity
-   - The user's request is self-contained and doesn't need previous context
-3. When a user confirms a specific time for a workout, ALWAYS use that exact time
-4. Never override a previously confirmed time with a different time
-5. If a user asks to change a time, only then should you propose a different time
-6. If a user asks about a workout without specifying details and it's a new request, ask for the details rather than assuming previous context
-
-IMPORTANT CALENDAR CONFLICT HANDLING:
-When creating calendar events, if you receive a "CONFLICT_DETECTED" response:
-1. Present the conflicting events to the user
-2. Ask them how they'd like to proceed:
-   - "skip": Don't create the new event
-   - "replace": Delete all conflicting events and create the new one
-   - "delete": Delete the first conflicting event and create the new one
-3. Use the resolve_calendar_conflict tool with their choice
-
-Always be professional, encouraging, and focused on helping the user achieve their fitness goals.
-
-IMPORTANT RULES:
-1. ONLY use tools when explicitly needed for the user's request
-2. For calendar events:
-   - ONLY use create_calendar_event when the user explicitly wants to schedule something
-   - ONLY use get_calendar_events when the user asks to see their schedule
-   - ONLY use delete_events_in_range when the user wants to clear their calendar
-   - If the user asks to see their schedule, list events only for the requested time frame (e.g., 'this week', 'next week', 'today'). Do NOT schedule a new event unless explicitly requested.
-3. For emails:
-   - ONLY use send_email when the user wants to send a message
-4. For tasks:
-   - ONLY use create_task when the user wants to create a task
-5. For location searches:
-   - ONLY use search_location when the user wants to find a place
-6. For sheets:
-   - ONLY use create_workout_tracker when the user wants to create a new workout tracking spreadsheet
-   - ONLY use add_workout_entry when the user wants to log a workout
-   - ONLY use add_nutrition_entry when the user wants to log nutrition information
-   - ONLY use get_sheet_data when the user wants to view sheet data
-
-When using tools:
-1. For calendar events:
-   - Use create_calendar_event with a JSON object containing:
-     - summary: Event title
-     - start: Object with dateTime and timeZone
-     - end: Object with dateTime and timeZone
-     - description: Event details
-     - location: Event location
-   - Use get_calendar_events with an empty string to list events
-   - Use delete_events_in_range with start_time|end_time format
-2. For emails:
-   - Use send_email with recipient|subject|body format
-3. For tasks:
-   - Use create_task with task_name|due_date format
-4. For location searches:
-   - Use search_location with location|query format
-   - Use find_nearby_workout_locations with location|radius format
-     Example: find_nearby_workout_locations: "One Infinite Loop, Cupertino, CA 95014|30"
-5. For sheets:
-   - Use create_workout_tracker with title format
-   - Use add_workout_entry with spreadsheet_id|date|workout_type|duration|calories|notes format
-   - Use add_nutrition_entry with spreadsheet_id|date|meal|calories|protein|carbs|fat|notes format
-   - Use get_sheet_data with spreadsheet_id|range_name format
-
-Example tool calls:
-- create_calendar_event: {{"summary": "Upper Body Workout", "start": {{"dateTime": "2025-06-18T10:00:00-07:00", "timeZone": "America/Los_Angeles"}}, "end": {{"dateTime": "2025-06-18T11:00:00-07:00", "timeZone": "America/Los_Angeles"}}, "description": "Focus on chest and shoulders", "location": "Gym"}}
-- get_calendar_events: ""
-- delete_events_in_range: "2025-06-18T00:00:00-07:00|2025-06-18T23:59:59-07:00"
-- send_email: "coach@gym.com|Weekly Progress Update|Here's your progress report..."
-- create_task: "Track protein intake|2025-06-21"
-- search_location: "San Francisco|gym"
-- create_workout_tracker: "My Workout Tracker"
-- add_workout_entry: "spreadsheet_id|2025-06-17|Upper Body|60|300|Focus on chest and shoulders"
-- add_nutrition_entry: "spreadsheet_id|2025-06-17|Lunch|500|30|50|20|Post-workout meal"
-- get_sheet_data: "spreadsheet_id|Workouts!A1:E10"
-
-IMPORTANT: Only use tools when explicitly needed for the user's request. Do not make unnecessary tool calls.
-
-When the user asks to schedule a workout:
-1. ALWAYS use create_calendar_event with a properly formatted JSON object
-2. ALWAYS include timeZone in the start and end times
-3. ALWAYS set the end time to be 1 hour after the start time unless specified otherwise
-4. ALWAYS include a descriptive summary and location
-5. ALWAYS use the format: TOOL_CALL: create_calendar_event {{"summary": "...", "start": {{"dateTime": "...", "timeZone": "..."}}, "end": {{"dateTime": "...", "timeZone": "..."}}, "description": "...", "location": "..."}}"""
 
 class FindNearbyWorkoutLocationsInput(BaseModel):
     lat: float = Field(..., description="Latitude of the location")
@@ -323,6 +219,15 @@ class PersonalTrainerAgent:
         print("Initializing agent...")
         # Initialize the agent with the custom workflow
         self.agent = await self._create_agent_workflow()
+        
+        # Initialize the state machine
+        self.state_machine = AgentStateMachine(
+            llm=self.llm,
+            tools=self.tools,
+            extract_preference_func=self.extract_preference_llm,
+            extract_timeframe_func=extract_timeframe_from_text
+        )
+        
         print(f"Agent initialized with {len(self.tools)} tools:")
         for tool in self.tools:
             print(f"- {tool.name}: {tool.description}")
@@ -373,181 +278,6 @@ class PersonalTrainerAgent:
                 return "Here are some workout locations nearby:\n" + "\n".join(locations)
             else:
                 return f"I've completed your request. You can check the details in your {tool_name.replace('_', ' ')}."
-
-    async def decide_next_action(self, history):
-        """Decide the next action based on the conversation history."""
-        try:
-            # Convert history to the format expected by the agent
-            if isinstance(history, list):
-                # Get the last message's content
-                last_message = history[-1]
-                if hasattr(last_message, 'content'):
-                    input_text = last_message.content
-                else:
-                    input_text = str(last_message)
-                # Get previous messages for chat history
-                chat_history = []
-                for msg in history[:-1]:
-                    if hasattr(msg, 'content'):
-                        chat_history.append(msg.content)
-                    else:
-                        chat_history.append(str(msg))
-            else:
-                input_text = str(history)
-                chat_history = []
-            
-            # Preference detection (integrated)
-            preference = await self.extract_preference_llm(input_text)
-            if preference:
-                return {
-                    "type": "tool_call",
-                    "tool": "add_preference_to_kg",
-                    "args": preference
-                }
-
-            # Get current time and date
-            current_time = datetime.now().strftime("%I:%M %p")
-            current_date = datetime.now().strftime("%A, %B %d, %Y")
-
-            # Format the tools list
-            formatted_tools = "\n".join([
-                f"- {tool.name}: {tool.description}"
-                for tool in self.tools
-            ])
-
-            # Create the system prompt with tool descriptions
-            system_prompt = f"""You are a helpful personal trainer AI assistant. You have access to the following tools:
-
-{formatted_tools}
-
-Current time: {current_time}
-Current date: {current_date}
-
-IMPORTANT RULES:
-1. ONLY use tools when explicitly needed for the user's request
-2. For calendar events:
-   - ONLY use create_calendar_event when the user explicitly wants to schedule something
-   - ONLY use get_calendar_events when the user asks to see their schedule
-   - ONLY use delete_events_in_range when the user wants to clear their calendar
-   - If the user asks to see their schedule, list events only for the requested time frame (e.g., 'this week', 'next week', 'today'). Do NOT schedule a new event unless explicitly requested.
-3. For emails:
-   - ONLY use send_email when the user wants to send a message
-4. For tasks:
-   - ONLY use create_task when the user wants to create a task
-5. For location searches:
-   - ONLY use search_location when the user wants to find a place
-6. For sheets:
-   - ONLY use create_workout_tracker when the user wants to create a new workout tracking spreadsheet
-   - ONLY use add_workout_entry when the user wants to log a workout
-   - ONLY use add_nutrition_entry when the user wants to log nutrition information
-   - ONLY use get_sheet_data when the user wants to view sheet data
-
-When using tools:
-1. For calendar events:
-   - Use create_calendar_event with a JSON object containing:
-     - summary: Event title
-     - start: Object with dateTime and timeZone
-     - end: Object with dateTime and timeZone
-     - description: Event details
-     - location: Event location
-   - Use get_calendar_events with an empty string to list events
-   - Use delete_events_in_range with start_time|end_time format
-2. For emails:
-   - Use send_email with recipient|subject|body format
-3. For tasks:
-   - Use create_task with task_name|due_date format
-4. For location searches:
-   - Use search_location with location|query format
-   - Use find_nearby_workout_locations with location|radius format
-     Example: find_nearby_workout_locations: "One Infinite Loop, Cupertino, CA 95014|30"
-5. For sheets:
-   - Use create_workout_tracker with title format
-   - Use add_workout_entry with spreadsheet_id|date|workout_type|duration|calories|notes format
-   - Use add_nutrition_entry with spreadsheet_id|date|meal|calories|protein|carbs|fat|notes format
-   - Use get_sheet_data with spreadsheet_id|range_name format
-
-Example tool calls:
-- create_calendar_event: {{"summary": "Upper Body Workout", "start": {{"dateTime": "2025-06-18T10:00:00-07:00", "timeZone": "America/Los_Angeles"}}, "end": {{"dateTime": "2025-06-18T11:00:00-07:00", "timeZone": "America/Los_Angeles"}}, "description": "Focus on chest and shoulders", "location": "Gym"}}
-- get_calendar_events: ""
-- delete_events_in_range: "2025-06-18T00:00:00-07:00|2025-06-18T23:59:59-07:00"
-- send_email: "coach@gym.com|Weekly Progress Update|Here's your progress report..."
-- create_task: "Track protein intake|2025-06-21"
-- search_location: "San Francisco|gym"
-- create_workout_tracker: "My Workout Tracker"
-- add_workout_entry: "spreadsheet_id|2025-06-17|Upper Body|60|300|Focus on chest and shoulders"
-- add_nutrition_entry: "spreadsheet_id|2025-06-17|Lunch|500|30|50|20|Post-workout meal"
-- get_sheet_data: "spreadsheet_id|Workouts!A1:E10"
-
-IMPORTANT: Only use tools when explicitly needed for the user's request. Do not make unnecessary tool calls.
-
-When the user asks to schedule a workout:
-1. ALWAYS use create_calendar_event with a properly formatted JSON object
-2. ALWAYS include timeZone in the start and end times
-3. ALWAYS set the end time to be 1 hour after the start time unless specified otherwise
-4. ALWAYS include a descriptive summary and location
-5. ALWAYS use the format: TOOL_CALL: create_calendar_event {{"summary": "...", "start": {{"dateTime": "...", "timeZone": "..."}}, "end": {{"dateTime": "...", "timeZone": "..."}}, "description": "...", "location": "..."}}"""
-
-            # Create the prompt with the full conversation history
-            prompt = f"{system_prompt}\n\nConversation history:\n"
-            for msg in chat_history:
-                prompt += f"{msg}\n"
-            prompt += f"\nUser's latest message: {input_text}\n\nWhat should I do next?"
-
-            # Get the LLM's response
-            response = await self.llm.ainvoke(prompt)
-            
-            # Handle both string and AIMessage responses
-            if isinstance(response, str):
-                response_text = response
-            elif hasattr(response, 'content'):
-                response_text = response.content
-            else:
-                response_text = str(response)
-            
-            if not response_text or not response_text.strip():
-                logger.error(f"LLM returned empty response for input: {input_text}")
-                raise RuntimeError("LLM returned empty response.")
-            
-            response_text = response_text.strip()
-            
-            # Check if the response contains a tool call
-            if "TOOL_CALL:" in response_text:
-                tool_call_line = response_text.split("TOOL_CALL:")[1].strip().split("\n")[0]
-                parts = tool_call_line.split(" ", 1)
-                if len(parts) >= 2:
-                    tool_name = parts[0].strip().rstrip(":")
-                    tool_args = parts[1].strip()
-                    # If get_calendar_events, override args with timeframe if present in user message
-                    if tool_name == "get_calendar_events":
-                        timeframe = extract_timeframe_from_text(input_text)
-                        if timeframe:
-                            tool_args = f'"{timeframe}"'
-                    logger.info(f"[TOOL_CALL] Tool selected: {tool_name}, Args: {tool_args}")
-                    return {
-                        "type": "tool_call",
-                        "tool": tool_name,
-                        "args": tool_args
-                    }
-            # Fallback: detect lines like 'find_nearby_workout_locations: ...' as tool calls
-            for tool in self.tools:
-                prefix = f"{tool.name}:"
-                if response_text.strip().startswith(prefix):
-                    tool_args = response_text.strip()[len(prefix):].strip()
-                    return {
-                        "type": "tool_call",
-                        "tool": tool.name,
-                        "args": tool_args
-                    }
-            
-            # Handle regular messages
-            return {
-                "type": "message",
-                "content": response_text
-            }
-                
-        except Exception as e:
-            logger.error(f"Error deciding next action: {e}")
-            raise
 
     async def process_tool_result(self, tool_name: str, result: Any) -> str:
         """Process the result of a tool execution and return a user-friendly response."""
@@ -680,63 +410,13 @@ Please provide a natural, detailed response:"""
 
     async def process_messages_stream(self, messages):
         """Process messages and return a streaming response with multi-step tool execution."""
-        try:
-            # Convert messages to LangChain format
-            input_messages = []
-            for msg in messages:
-                converted = self._convert_message(msg)
-                if converted:
-                    input_messages.append(converted)
-            
-            if not input_messages:
-                yield "I didn't receive any valid messages to process."
-                return
-            
-            # Get the last user message
-            user_message = input_messages[-1]
-            if not isinstance(user_message, HumanMessage):
-                yield "I need a user message to process."
-                return
-            
-            # Multi-step process: decide action → confirm → execute → summarize
-            state = "AGENT_THINKING"
-            history = [user_message.content]
-            agent_action = None
-            tool_result = None
-            last_tool = None
-
-            while state != "DONE":
-                if state == "AGENT_THINKING":
-                    agent_action = await self.decide_next_action(history)
-                    if agent_action["type"] == "message":
-                        yield agent_action["content"]
-                        state = "DONE"
-                    elif agent_action["type"] == "tool_call":
-                        last_tool = agent_action["tool"]
-                        # Send confirmation message before calling tool
-                        confirmation_message = await self._get_tool_confirmation_message(last_tool, agent_action["args"])
-                        yield confirmation_message
-                        state = "AGENT_TOOL_CALL"
-                    else:
-                        state = "DONE"
-                elif state == "AGENT_TOOL_CALL":
-                    tool_result = await self._execute_tool(agent_action["tool"], agent_action["args"])
-                    # Add the tool result as a message in the history
-                    history.append(f"TOOL RESULT: {tool_result}")
-                    # Always go to summarize state after a tool call
-                    state = "AGENT_SUMMARIZE_TOOL_RESULT"
-                elif state == "AGENT_SUMMARIZE_TOOL_RESULT":
-                    # Always require the LLM to summarize the tool result for the user
-                    summary = await self._summarize_tool_result(last_tool, tool_result)
-                    if not summary:
-                        logger.error(f"LLM returned empty summary for tool {last_tool} and result {tool_result}")
-                        raise RuntimeError("LLM returned empty summary")
-                    yield summary
-                    state = "DONE"
-                
-        except Exception as e:
-            logger.error(f"Error in process_messages_stream: {e}")
-            yield f"Error processing messages: {str(e)}"
+        async for response in self.state_machine.process_messages_stream(
+            messages=messages,
+            execute_tool_func=self._execute_tool,
+            get_tool_confirmation_func=self._get_tool_confirmation_message,
+            summarize_tool_result_func=self._summarize_tool_result
+        ):
+            yield response
 
     def _parse_tool_string(self, output_str):
         """Parse tool name and input from a raw tool invocation string."""
@@ -1063,20 +743,6 @@ Please provide a natural, detailed response:"""
         except Exception as e:
             logger.error(f"[GoogleCalendar] Error handling operation: {e}")
             return f"Error: {str(e)}"
-
-    def _convert_message(self, msg):
-        """Convert a message to the format expected by the agent."""
-        if isinstance(msg, dict):
-            if msg.get('role') == 'user':
-                return HumanMessage(content=msg.get('content', ''))
-            elif msg.get('role') == 'assistant':
-                return AIMessage(content=msg.get('content', ''))
-            else:
-                return HumanMessage(content=str(msg))
-        elif isinstance(msg, str):
-            return HumanMessage(content=msg)
-        else:
-            return HumanMessage(content=str(msg))
 
     def _convert_to_calendar_format(self, event_details):
         """Convert event details to Google Calendar format."""

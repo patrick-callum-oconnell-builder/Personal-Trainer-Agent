@@ -2,6 +2,7 @@
 
 from .agent import PersonalTrainerAgent
 from .agent_state import AgentState
+from .agent_state_machine import AgentStateMachine
 from .google_services.calendar import GoogleCalendarService
 from .google_services.gmail import GoogleGmailService
 from .google_services.maps import GoogleMapsService
@@ -13,6 +14,7 @@ from .google_services.sheets import GoogleSheetsService
 __all__ = [
     'PersonalTrainerAgent',
     'AgentState',
+    'AgentStateMachine',
     'GoogleCalendarService',
     'GoogleGmailService',
     'GoogleMapsService',
