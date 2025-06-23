@@ -223,7 +223,17 @@ class ToolManager:
             if isinstance(args, str):
                 args = self._parse_string_args(tool_name, args)
 
-            # Execute the tool
+            # Special handling for create_calendar_event
+            if tool_name == "create_calendar_event":
+                if "natural_language_input" in args:
+                    event_details_json = await self.convert_natural_language_to_calendar_json(args["natural_language_input"])
+                    event_details = json.loads(event_details_json)
+                    logger.info(f"Executing tool {tool_name} with converted args: {event_details}")
+                    result = await tool.func(event_details)
+                    logger.info(f"Tool {tool_name} returned: {result}")
+                    return result
+
+            # Execute the tool for other cases
             logger.info(f"Executing tool {tool_name} with args: {args}")
             result = await tool.func(args) if asyncio.iscoroutinefunction(tool.func) else tool.func(args)
             logger.info(f"Tool {tool_name} returned: {result}")
