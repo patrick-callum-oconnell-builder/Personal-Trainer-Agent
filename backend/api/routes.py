@@ -19,6 +19,7 @@ from pydantic import validator
 import asyncio
 import json
 from backend.knowledge_graph import KnowledgeGraph, KNOWLEDGE_GRAPH_PROMPT
+from backend.agent_state import AgentState
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -289,4 +290,9 @@ async def chat_stream(request: ChatRequest, background_tasks: BackgroundTasks, x
 def get_knowledge_graph():
     kg = KnowledgeGraph()  # Loads from file if exists
     logging.getLogger(__name__).info(f"/knowledge-graph API called. Entities: {list(kg.entity_map.keys())}")
-    return kg.to_dict() 
+    return kg.to_dict()
+
+@router.get("/state-history")
+async def get_state_history():
+    """Get the agent's state history as a list of state snapshots."""
+    return {"history": AgentState.get_state_history()} 

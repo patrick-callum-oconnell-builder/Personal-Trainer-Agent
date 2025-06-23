@@ -78,7 +78,7 @@ agent_personal_trainer/
 
 ### Agent Architecture
 
-The AI agent uses a sophisticated state machine with the following states:
+The AI agent uses a state machine with the following states:
 - **Active**: Processing user input and making decisions
 - **Awaiting User**: Waiting for user input
 - **Awaiting Tool**: Executing a tool and waiting for results

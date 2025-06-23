@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import Chat from './components/Chat';
 import KnowledgeGraph from './components/KnowledgeGraph';
+import StateHistory from './components/StateHistory';
 import './App.css';
 
 export interface Message {
@@ -10,7 +11,7 @@ export interface Message {
 }
 
 const App: React.FC = () => {
-  const [activeTab, setActiveTab] = useState<'chat' | 'kg'>('chat');
+  const [activeTab, setActiveTab] = useState<'chat' | 'kg' | 'history'>('chat');
   const [messages, setMessages] = useState<Message[]>([]);
   const [kgRefresh, setKgRefresh] = useState(0);
 
@@ -43,13 +44,24 @@ const App: React.FC = () => {
             >
               <span role="img" aria-label="Graph">🧠</span> Knowledge Graph
             </button>
+            <button
+              className={activeTab === 'history' ? 'side-tab active' : 'side-tab'}
+              onClick={() => setActiveTab('history')}
+              aria-label="State History"
+            >
+              <span role="img" aria-label="History">📜</span> State History
+            </button>
           </aside>
           <main className="App-main">
             {activeTab === 'chat' ? (
               <Chat messages={messages} setMessages={setMessages} onPreferenceAdded={triggerKgRefresh} />
-            ) : (
+            ) : activeTab === 'kg' ? (
               <div className="kg-graph-area">
                 <KnowledgeGraph refresh={kgRefresh} />
+              </div>
+            ) : (
+              <div className="state-history-area">
+                <StateHistory />
               </div>
             )}
           </main>

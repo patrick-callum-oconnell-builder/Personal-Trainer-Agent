@@ -10,6 +10,9 @@ def last(left, right):
     """Return the rightmost value when merging states."""
     return right
 
+# Class-level state history (outside the dataclass)
+_state_history: List[Dict[str, Any]] = []
+
 @dataclass
 class AgentState(DictionaryState):
     """
@@ -133,6 +136,20 @@ class AgentState(DictionaryState):
                     elif key == 'missing_fields':
                         self._validate_missing_fields(value)
                     setattr(self, key, value)
+            # After updating, append a snapshot to the state history
+            self.append_to_history()
+
+    def append_to_history(self):
+        # Store a snapshot of the current state (excluding private fields)
+        snapshot = self.to_dict()
+        global _state_history
+        _state_history.append(snapshot)
+
+    @classmethod
+    def get_state_history(cls) -> List[Dict[str, Any]]:
+        """Return the state history as a list of dicts."""
+        global _state_history
+        return _state_history.copy()
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> 'AgentState':
