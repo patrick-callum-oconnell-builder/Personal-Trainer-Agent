@@ -1,5 +1,5 @@
 from typing import Any, List, Optional
-from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage
+from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage, AIMessage
 
 class OrchestratedAgent:
     """
@@ -25,16 +25,54 @@ class OrchestratedAgent:
             extract_timeframe_func=extract_timeframe_func,
         )
 
+    def _convert_messages_to_base_messages(self, messages: List[Any]) -> List[BaseMessage]:
+        """Convert dictionary messages to BaseMessage instances."""
+        converted_messages = []
+        for msg in messages:
+            if isinstance(msg, BaseMessage):
+                converted_messages.append(msg)
+            elif isinstance(msg, dict):
+                role = msg.get('role')
+                content = msg.get('content', '')
+                if role == 'user':
+                    converted_messages.append(HumanMessage(content=content))
+                elif role == 'assistant':
+                    converted_messages.append(AIMessage(content=content))
+                elif role == 'system':
+                    converted_messages.append(SystemMessage(content=content))
+                else:
+                    converted_messages.append(HumanMessage(content=str(msg)))
+            else:
+                converted_messages.append(HumanMessage(content=str(msg)))
+        return converted_messages
+
     async def process_messages_stream(self, messages: List[BaseMessage]):
         """
         Process messages and return a streaming response with multi-step tool execution.
         """
+        # Convert messages to BaseMessage instances if they aren't already
+        base_messages = self._convert_messages_to_base_messages(messages)
+        
+        # Update state with incoming messages
+        await self.agent_state.update(
+            messages=base_messages,
+            status="active"
+        )
+        
         async for response in self.state_machine.process_messages_stream(
-            messages=messages,
+            messages=base_messages,
             execute_tool_func=self.tool_manager.execute_tool,
             get_tool_confirmation_func=self.tool_manager.get_tool_confirmation_message,
-            summarize_tool_result_func=self.tool_manager.summarize_tool_result
+            summarize_tool_result_func=self.tool_manager.summarize_tool_result,
+            agent_state=self.agent_state
         ):
+            # Update state with assistant response
+            assistant_message = AIMessage(content=response)
+            updated_messages = base_messages + [assistant_message]
+            await self.agent_state.update(
+                messages=updated_messages,
+                status="awaiting_user"
+            )
             yield response
 
     async def extract_preference_llm(self, text: str):

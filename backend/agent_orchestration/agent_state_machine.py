@@ -46,7 +46,8 @@ class AgentStateMachine:
     async def process_messages_stream(self, messages: List[BaseMessage], 
                                     execute_tool_func, 
                                     get_tool_confirmation_func,
-                                    summarize_tool_result_func) -> AsyncGenerator[str, None]:
+                                    summarize_tool_result_func,
+                                    agent_state=None) -> AsyncGenerator[str, None]:
         """
         Process messages and return a streaming response with multi-step tool execution.
         
@@ -55,6 +56,7 @@ class AgentStateMachine:
             execute_tool_func: Function to execute tools
             get_tool_confirmation_func: Function to get tool confirmation messages
             summarize_tool_result_func: Function to summarize tool results
+            agent_state: Current state of the agent
             
         Yields:
             str: Response messages
@@ -86,12 +88,20 @@ class AgentStateMachine:
 
             while state != "DONE":
                 if state == "AGENT_THINKING":
+                    # Update state to thinking
+                    if agent_state:
+                        await agent_state.update(status="active")
+                    
                     agent_action = await self.decide_next_action(history)
                     if agent_action["type"] == "message":
                         yield agent_action["content"]
                         state = "DONE"
                     elif agent_action["type"] == "tool_call":
                         last_tool = agent_action["tool"]
+                        # Update state to awaiting tool
+                        if agent_state:
+                            await agent_state.update(status="awaiting_tool", last_tool_result=None)
+                        
                         # Send confirmation message before calling tool
                         confirmation_message = await get_tool_confirmation_func(last_tool, agent_action["args"])
                         yield confirmation_message
@@ -100,6 +110,10 @@ class AgentStateMachine:
                         state = "DONE"
                 elif state == "AGENT_TOOL_CALL":
                     tool_result = await execute_tool_func(agent_action["tool"], agent_action["args"])
+                    # Update state with tool result
+                    if agent_state:
+                        await agent_state.update(last_tool_result=tool_result)
+                    
                     # Add the tool result as a message in the history
                     history.append(f"TOOL RESULT: {tool_result}")
                     # Always go to summarize state after a tool call
@@ -110,6 +124,11 @@ class AgentStateMachine:
                     if not summary:
                         logger.error(f"LLM returned empty summary for tool {last_tool} and result {tool_result}")
                         raise RuntimeError("LLM returned empty summary")
+                    
+                    # Update state to done
+                    if agent_state:
+                        await agent_state.update(status="done")
+                    
                     yield summary
                     state = "DONE"
                 

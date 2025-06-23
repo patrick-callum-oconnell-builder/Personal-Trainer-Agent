@@ -3,6 +3,7 @@ from langchain_core.messages import BaseMessage
 import asyncio
 from dataclasses import dataclass, field
 import operator
+import logging
 
 from backend.dictionary_state import DictionaryState
 
@@ -127,6 +128,9 @@ class AgentState(DictionaryState):
             >>> await state.update(messages=[HumanMessage(content="Hello")])
         """
         async with self._lock:
+            logger = logging.getLogger(__name__)
+            logger.info(f"Updating agent state with: {kwargs}")
+            
             for key, value in kwargs.items():
                 if hasattr(self, key):
                     if key == 'messages':
@@ -136,6 +140,10 @@ class AgentState(DictionaryState):
                     elif key == 'missing_fields':
                         self._validate_missing_fields(value)
                     setattr(self, key, value)
+                    logger.debug(f"Updated {key} to {value}")
+                else:
+                    logger.warning(f"Attempted to update non-existent attribute: {key}")
+            
             # After updating, append a snapshot to the state history
             self.append_to_history()
 
@@ -144,12 +152,20 @@ class AgentState(DictionaryState):
         snapshot = self.to_dict()
         global _state_history
         _state_history.append(snapshot)
+        logging.getLogger(__name__).info(f"State history updated. Total snapshots: {len(_state_history)}")
+        logging.getLogger(__name__).debug(f"Current state: {snapshot}")
 
     @classmethod
     def get_state_history(cls) -> List[Dict[str, Any]]:
         """Return the state history as a list of dicts."""
         global _state_history
         return _state_history.copy()
+
+    @classmethod
+    def clear_state_history(cls):
+        """Clear the state history. Useful for testing."""
+        global _state_history
+        _state_history.clear()
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> 'AgentState':

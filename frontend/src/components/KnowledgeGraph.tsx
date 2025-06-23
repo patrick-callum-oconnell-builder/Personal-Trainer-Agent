@@ -82,7 +82,10 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({ refresh }) => {
   useEffect(() => {
     if (fgRef.current && dimensions.width && dimensions.height) {
       // Set the simulation center to the center of the canvas
-      fgRef.current.d3Force('center').x(dimensions.width / 2).y(dimensions.height / 2);
+      const centerForce = fgRef.current.d3Force('center');
+      if (centerForce) {
+        centerForce.x(dimensions.width / 2).y(dimensions.height / 2);
+      }
     }
   }, [dimensions]);
 
@@ -90,13 +93,15 @@ const KnowledgeGraph: React.FC<KnowledgeGraphProps> = ({ refresh }) => {
     if (fgRef.current && data.nodes.length && dimensions.width && dimensions.height) {
       setTimeout(() => {
         const validNodes = data.nodes.filter(n => typeof n.x === 'number' && typeof n.y === 'number');
-        if (validNodes.length > 0) {
+        if (validNodes.length > 0 && fgRef.current) {
           const avgX = validNodes.reduce((sum, n) => sum + (n.x ?? 0), 0) / validNodes.length;
           const avgY = validNodes.reduce((sum, n) => sum + (n.y ?? 0), 0) / validNodes.length;
           fgRef.current.centerAt(avgX, avgY, 600);
           fgRef.current.zoom(1, 600);
         }
-        fgRef.current.d3Force('link')?.distance(120);
+        if (fgRef.current) {
+          fgRef.current.d3Force('link')?.distance(120);
+        }
       }, 600);
     }
   }, [dimensions, data]);

@@ -319,4 +319,10 @@ def get_knowledge_graph():
 @router.get("/state-history")
 async def get_state_history():
     """Get the agent's state history as a list of state snapshots."""
-    return {"history": AgentState.get_state_history()} 
+    return {"history": AgentState.get_state_history()}
+
+@router.post("/state-history/clear")
+async def clear_state_history():
+    """Clear the agent's state history. Useful for testing."""
+    AgentState.clear_state_history()
+    return {"message": "State history cleared"} 
