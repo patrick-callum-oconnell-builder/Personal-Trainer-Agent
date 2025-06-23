@@ -4,16 +4,17 @@ import asyncio
 from dataclasses import dataclass, field
 import operator
 
+from backend.dictionary_state import DictionaryState
+
 def last(left, right):
     return right
 
 @dataclass
-class AgentState:
+class AgentState(DictionaryState):
     messages: Annotated[List[BaseMessage], operator.add] = field(default_factory=list)
     status: Annotated[str, last] = "active"
     missing_fields: Annotated[List[str], operator.add] = field(default_factory=list)
     last_tool_result: Annotated[Any, last] = None
-    _lock: asyncio.Lock = field(default_factory=asyncio.Lock)
 
     def __post_init__(self):
         self._validate_messages(self.messages)
@@ -36,7 +37,7 @@ class AgentState:
             raise ValueError("Missing fields must be a list")
 
     async def update(self, **kwargs):
-        """Thread-safe state update method."""
+        """Thread-safe state update method with validation."""
         async with self._lock:
             for key, value in kwargs.items():
                 if hasattr(self, key):
@@ -47,35 +48,6 @@ class AgentState:
                     elif key == 'missing_fields':
                         self._validate_missing_fields(value)
                     setattr(self, key, value)
-
-    def __getitem__(self, key: str) -> Any:
-        """Get an item using dictionary-style access."""
-        if not hasattr(self, key):
-            raise KeyError(f"AgentState has no attribute '{key}'")
-        return getattr(self, key)
-
-    def __setitem__(self, key: str, value: Any) -> None:
-        """Set an item using dictionary-style access."""
-        if not hasattr(self, key):
-            raise KeyError(f"AgentState has no attribute '{key}'")
-        setattr(self, key, value)
-
-    def __contains__(self, key: str) -> bool:
-        """Check if a key exists in the state."""
-        return hasattr(self, key)
-
-    def get(self, key: str, default: Any = None) -> Any:
-        """Get an item with a default value if the key doesn't exist."""
-        return getattr(self, key, default)
-
-    def to_dict(self) -> Dict[str, Any]:
-        """Convert the state to a dictionary."""
-        return {
-            "messages": self.messages,
-            "status": self.status,
-            "missing_fields": self.missing_fields,
-            "last_tool_result": self.last_tool_result,
-        }
 
     @classmethod
     def from_dict(cls, d: Dict[str, Any]) -> 'AgentState':
@@ -102,19 +74,4 @@ class AgentState:
             status=d.get("status", "active"),
             missing_fields=d.get("missing_fields", []),
             last_tool_result=d.get("last_tool_result"),
-        )
-
-    def __repr__(self) -> str:
-        """String representation of the state."""
-        return f"AgentState(status={self.status}, messages={len(self.messages)}, missing_fields={self.missing_fields}, last_tool_result={self.last_tool_result})"
-
-    def __eq__(self, other: Any) -> bool:
-        """Compare two states for equality."""
-        if not isinstance(other, AgentState):
-            return False
-        return (
-            self.status == other.status and
-            self.messages == other.messages and
-            self.missing_fields == other.missing_fields and
-            self.last_tool_result == other.last_tool_result
         ) 
