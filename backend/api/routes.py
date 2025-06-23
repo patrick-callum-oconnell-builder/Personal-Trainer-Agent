@@ -2,7 +2,7 @@ import logging
 from fastapi import APIRouter, HTTPException, Request, BackgroundTasks, Header, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
-from backend.agent import PersonalTrainerAgent
+from backend.personal_trainer_agent import PersonalTrainerAgent
 from backend.google_services import (
     GoogleCalendarService,
     GoogleDriveService,

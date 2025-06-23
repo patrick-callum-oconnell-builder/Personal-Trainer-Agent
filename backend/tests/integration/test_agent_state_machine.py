@@ -2,7 +2,7 @@ import pytest
 import logging
 from unittest.mock import AsyncMock, patch, MagicMock
 from backend.agent_state_machine import AgentStateMachine
-from backend.agent import PersonalTrainerAgent
+from backend.personal_trainer_agent import PersonalTrainerAgent
 from langchain_core.messages import HumanMessage, AIMessage
 from backend.tests.integration.base_integration_test import BaseIntegrationTest
 

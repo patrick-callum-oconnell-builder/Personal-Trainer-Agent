@@ -15,7 +15,7 @@ from unittest.mock import AsyncMock, MagicMock, patch
 backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(backend_dir)
 
-from backend.agent import PersonalTrainerAgent
+from backend.personal_trainer_agent import PersonalTrainerAgent
 from backend.google_services import (
     GoogleCalendarService,
     GoogleDriveService,

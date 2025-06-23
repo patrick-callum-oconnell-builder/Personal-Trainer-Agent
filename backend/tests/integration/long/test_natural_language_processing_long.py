@@ -4,7 +4,7 @@ import os
 from datetime import datetime, timedelta
 import json
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
-from backend.agent import PersonalTrainerAgent
+from backend.personal_trainer_agent import PersonalTrainerAgent
 from backend.google_services import (
     GoogleCalendarService,
     GoogleDriveService,

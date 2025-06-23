@@ -1,6 +1,7 @@
 """Backend package for the Personal Trainer AI application."""
 
-from .agent import PersonalTrainerAgent
+from .orchestrated_agent import OrchestratedAgent
+from .personal_trainer_agent import PersonalTrainerAgent
 from .agent_state import AgentState
 from .agent_state_machine import AgentStateMachine
 from .google_services.calendar import GoogleCalendarService
@@ -12,6 +13,7 @@ from .google_services.drive import GoogleDriveService
 from .google_services.sheets import GoogleSheetsService
 
 __all__ = [
+    'OrchestratedAgent',
     'PersonalTrainerAgent',
     'AgentState',
     'AgentStateMachine',

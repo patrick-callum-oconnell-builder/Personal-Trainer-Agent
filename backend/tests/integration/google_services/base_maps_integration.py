@@ -4,7 +4,7 @@ import pytest
 import pytest_asyncio
 from dotenv import load_dotenv
 from backend.google_services import GoogleMapsService
-from backend.agent import PersonalTrainerAgent
+from backend.personal_trainer_agent import PersonalTrainerAgent
 from unittest.mock import AsyncMock, MagicMock
 
 # Add the backend directory to the Python path

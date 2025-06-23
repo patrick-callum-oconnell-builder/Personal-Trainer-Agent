@@ -7,7 +7,7 @@ import sys
 import json
 import asyncio
 
-from backend.agent import PersonalTrainerAgent
+from backend.personal_trainer_agent import PersonalTrainerAgent
 from backend.google_services import (
     GoogleCalendarService,
     GoogleDriveService,

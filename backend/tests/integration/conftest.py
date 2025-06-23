@@ -8,7 +8,7 @@ import asyncio
 backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(backend_dir)
 
-from agent import PersonalTrainerAgent
+from personal_trainer_agent import PersonalTrainerAgent
 from google_services.calendar import GoogleCalendarService
 from google_services.gmail import GoogleGmailService
 from google_services.fit import GoogleFitnessService

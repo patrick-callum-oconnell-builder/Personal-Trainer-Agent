@@ -2,7 +2,7 @@ import asyncio
 import pytest
 import pytest_asyncio
 from datetime import datetime, timedelta
-from backend.agent import PersonalTrainerAgent
+from backend.personal_trainer_agent import PersonalTrainerAgent
 from backend.google_services import (
     GoogleCalendarService,
     GoogleDriveService,
