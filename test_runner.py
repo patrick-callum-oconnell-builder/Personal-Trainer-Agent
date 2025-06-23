@@ -53,6 +53,39 @@ class TestRunner:
                 print(f"Error deleting file {file}: {e}")
         print(f"  - Deleted {cleaned_count} log file(s).")
     
+    def _organize_test_reports(self):
+        """Move all but the latest 5 test reports to an 'older' subdirectory."""
+        older_dir = self.test_logs_dir / "older"
+        older_dir.mkdir(exist_ok=True)
+        
+        # Get all JSON report files sorted by modification time (newest first)
+        report_files = sorted(
+            self.test_logs_dir.glob('test_report_*.json'),
+            key=lambda x: x.stat().st_mtime,
+            reverse=True
+        )
+        
+        if len(report_files) <= 5:
+            return  # No need to move anything
+        
+        # Move all but the latest 5 files to the older directory
+        files_to_move = report_files[5:]
+        moved_count = 0
+        
+        for file in files_to_move:
+            try:
+                # Move to older directory
+                new_path = older_dir / file.name
+                file.rename(new_path)
+                moved_count += 1
+            except OSError as e:
+                print(f"Error moving file {file}: {e}")
+        
+        if moved_count > 0:
+            print(f"📁 Moved {moved_count} old test report(s) to {older_dir}")
+        else:
+            print(f"📁 No old reports to move (keeping latest 5)")
+    
     def discover_tests(self) -> List[str]:
         """Discover all test files in the project."""
         test_files = []
@@ -200,21 +233,37 @@ class TestRunner:
         self.total_tests += 1
         return result
     
-    def run_integration_tests(self) -> Dict[str, Any]:
+    def run_integration_tests(self, exclude_long=False) -> Dict[str, Any]:
         """Run integration tests with proper markers."""
         print("🔍 Running integration tests...")
         
-        # Use pytest to run all tests in the integration directory
-        cmd = [
-            sys.executable, '-m', 'pytest', 
-            'backend/tests/integration/', 
-            '-v', 
-            '--tb=short',
-            '--no-header',
-            '--disable-warnings',
-            '--cov=backend',
-            '--cov-report=term'
-        ]
+        # Determine the path to run based on exclude_long flag
+        if exclude_long:
+            # Run integration tests but exclude the long subdirectory
+            cmd = [
+                sys.executable, '-m', 'pytest', 
+                'backend/tests/integration/', 
+                '--ignore', 'backend/tests/integration/long/',
+                '-v', 
+                '--tb=short',
+                '--no-header',
+                '--disable-warnings',
+                '--cov=backend',
+                '--cov-report=term'
+            ]
+        else:
+            # Run all integration tests including long ones
+            cmd = [
+                sys.executable, '-m', 'pytest', 
+                'backend/tests/integration/', 
+                '-v', 
+                '--tb=short',
+                '--no-header',
+                '--disable-warnings',
+                '--cov=backend',
+                '--cov-report=term'
+            ]
+        
         self._execute_test_run(cmd)
         return self.generate_report()
 
@@ -510,11 +559,8 @@ class TestRunner:
         
         print(f"\nReport saved to: {report_path}")
 
-def main():
-    """Main execution entry point."""
-    project_root = os.path.dirname(os.path.abspath(__file__))
-    
-    # --- Argument Parsing ---
+def parse_args():
+    """Parse command-line arguments."""
     parser = argparse.ArgumentParser(
         description="Comprehensive Test Runner for Agent Personal Trainer",
         formatter_class=argparse.RawTextHelpFormatter
@@ -536,16 +582,42 @@ def main():
         action='store_true',
         help="If set, clears all logs in the test_logs directory before the run."
     )
-    args = parser.parse_args()
+    parser.add_argument('--exclude-long', action='store_true', help='Exclude long-running tests')
+    return parser.parse_args()
+
+def get_test_files(test_type, test_name=None, exclude_long=False):
+    """Get a list of test files based on the specified type and name."""
+    runner = TestRunner(os.path.dirname(os.path.abspath(__file__)))
+    test_files = runner.discover_tests()
+    if exclude_long:
+        # Exclude files in the long subdirectory and files with _long in the name
+        test_files = [f for f in test_files if '/long/' not in f and '_long' not in f]
+    return test_files
+
+def main():
+    """Main function to run the tests."""
+    args = parse_args()
+
+    if args.clean_logs:
+        runner = TestRunner(os.path.dirname(os.path.abspath(__file__)))
+        runner._clean_test_logs()
+
+    if args.type == 'single':
+        if not args.name:
+            print("Error: --name is required when --type is 'single'")
+            sys.exit(1)
+        test_files = [args.name]
+    else:
+        test_files = get_test_files(args.type, exclude_long=args.exclude_long)
+
+    if not test_files:
+        print("No tests found for the specified criteria.")
+        sys.exit(1)
 
     print("🧪 Agent Personal Trainer - Comprehensive Test Runner")
     print("=" * 60)
 
-    runner = TestRunner(project_root)
-
-    # --- Clean logs if requested ---
-    if args.clean_logs:
-        runner._clean_test_logs()
+    runner = TestRunner(os.path.dirname(os.path.abspath(__file__)))
 
     try:
         # Determine which tests to run
@@ -557,19 +629,19 @@ def main():
             report = runner.run_unit_tests()
         elif args.type == 'integration':
             print("🎯 Running INTEGRATION tests only...")
-            report = runner.run_integration_tests()
+            report = runner.run_integration_tests(args.exclude_long)
         elif args.type == 'long':
             print("🎯 Running LONG tests only...")
             report = runner.run_long_tests()
         elif args.type == 'single':
-            if not args.name:
-                print("❌ Error: --name must be provided when --type is 'single'.")
-            else:
-                print(f"🎯 Running SINGLE test: {args.name}")
-                report = runner.run_single_test(args.name)
+            print(f"🎯 Running SINGLE test: {args.name}")
+            report = runner.run_single_test(args.name)
         
         # Save report
         report_path = runner.save_report(report)
+        
+        # Organize old test reports
+        runner._organize_test_reports()
         
         # Print summary
         runner.print_summary(report, report_path)

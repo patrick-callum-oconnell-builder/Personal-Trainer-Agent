@@ -1,0 +1,191 @@
+{
+  "timestamp": "2025-06-23T11:16:41.872621",
+  "summary": {
+    "total_tests": 36,
+    "passed_tests": 33,
+    "failed_tests": 3,
+    "error_tests": 0,
+    "success_rate_percentage": 91.67,
+    "coverage_percentage": 43
+  },
+  "failed_tests": [
+    {
+      "test_name": "backend/tests/integration/test_natural_language_processing_long.py::backend.tests.integration.test_natural_language_processing_long::test_tool_execution_with_natural_language",
+      "status": "failed",
+      "error": "AttributeError: 'ToolManager' object has no attribute 'execute_tool_from_natural_language'",
+      "error_type": null,
+      "runtime": 0.003,
+      "traceback": "backend/tests/integration/test_natural_language_processing_long.py:96: in test_tool_execution_with_natural_language\n    result = await agent.tool_manager.execute_tool_from_natural_language(natural_language_command)\nE   AttributeError: 'ToolManager' object has no attribute 'execute_tool_from_natural_language'",
+      "stdout": null,
+      "stderr": null
+    },
+    {
+      "test_name": "backend/tests/integration/test_natural_language_processing_long.py::backend.tests.integration.test_natural_language_processing_long::test_tool_confirmation_messages",
+      "status": "failed",
+      "error": "assert 'Okay, I will run the tool' in \"I'll schedule a Project Sync meeting for July 20, 2024, from 10:00 AM to 11:00 AM.\"",
+      "error_type": null,
+      "runtime": 1.223,
+      "traceback": "backend/tests/integration/test_natural_language_processing_long.py:112: in test_tool_confirmation_messages\n    assert \"Okay, I will run the tool\" in confirmation_message\nE   assert 'Okay, I will run the tool' in \"I'll schedule a Project Sync meeting for July 20, 2024, from 10:00 AM to 11:00 AM.\"",
+      "stdout": null,
+      "stderr": null
+    },
+    {
+      "test_name": "backend/tests/integration/test_natural_language_processing_long.py::backend.tests.integration.test_natural_language_processing_long::test_tool_result_processing",
+      "status": "failed",
+      "error": "AttributeError: 'NoneType' object has no attribute 'events'",
+      "error_type": null,
+      "runtime": 0.004,
+      "traceback": "backend/tests/integration/test_natural_language_processing_long.py:130: in test_tool_result_processing\n    created_event = await agent.calendar_service.write_event(event_details)\nbackend/google_services/calendar.py:277: in write_event\n    conflicting_events = await self.check_for_conflicts(event_details)\nbackend/google_services/calendar.py:215: in check_for_conflicts\n    conflicting_events = await asyncio.to_thread(fetch)\n/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/threads.py:25: in to_thread\n    return await loop.run_in_executor(None, func_call)\n/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/concurrent/futures/thread.py:58: in run\n    result = self.fn(*self.args, **self.kwargs)\nbackend/google_services/calendar.py:206: in fetch\n    events_result = self.service.events().list(\nE   AttributeError: 'NoneType' object has no attribute 'events'",
+      "stdout": null,
+      "stderr": null
+    }
+  ],
+  "test_runtimes": [
+    {
+      "test_name": "backend/tests/integration/google_services/test_maps_integration_long.py::backend.tests.integration.google_services.test_maps_integration_long::test_maps_tool_call",
+      "runtime": 80.175
+    },
+    {
+      "test_name": "backend/tests/integration/test_natural_language_processing_long.py::backend.tests.integration.test_natural_language_processing_long::test_natural_language_to_calendar_json_conversion",
+      "runtime": 4.425
+    },
+    {
+      "test_name": "backend/tests/integration/google_services/test_gmail_integration.py::backend.tests.integration.google_services.test_gmail_integration::test_get_recent_emails",
+      "runtime": 4.029
+    },
+    {
+      "test_name": "backend/tests/integration/test_agent_workflow_long.py::backend.tests.integration.test_agent_workflow_long::test_tool_execution_workflow",
+      "runtime": 3.79
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_get_recent_emails",
+      "runtime": 3.534
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_get_state_history",
+      "runtime": 3.48
+    },
+    {
+      "test_name": "backend/tests/integration/google_services/test_drive_integration.py::backend.tests.integration.google_services.test_drive_integration::test_create_folder",
+      "runtime": 3.407
+    },
+    {
+      "test_name": "backend/tests/integration/test_agent_workflow_long.py::backend.tests.integration.test_agent_workflow_long::test_streaming_conversation",
+      "runtime": 3.382
+    },
+    {
+      "test_name": "backend/tests/integration/test_agent_workflow_long.py::backend.tests.integration.test_agent_workflow_long::test_conversation_loop",
+      "runtime": 3.09
+    },
+    {
+      "test_name": "backend/tests/integration/google_services/test_sheets_integration.py::backend.tests.integration.google_services.test_sheets_integration::test_create_workout_tracker",
+      "runtime": 2.219
+    },
+    {
+      "test_name": "backend/tests/integration/google_services/test_sheets_integration.py::backend.tests.integration.google_services.test_sheets_integration::test_add_workout_entry",
+      "runtime": 2.191
+    },
+    {
+      "test_name": "backend/tests/integration/test_agent_workflow_long.py::backend.tests.integration.test_agent_workflow_long::test_error_handling",
+      "runtime": 1.737
+    },
+    {
+      "test_name": "::backend.tests.integration.google_services.test_calendar_integration.TestCalendarIntegration::test_schedule_workout",
+      "runtime": 1.481
+    },
+    {
+      "test_name": "backend/tests/integration/google_services/test_drive_integration.py::backend.tests.integration.google_services.test_drive_integration::test_upload_workout_plan",
+      "runtime": 1.441
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_chat",
+      "runtime": 1.438
+    },
+    {
+      "test_name": "backend/tests/integration/google_services/test_tasks_integration.py::backend.tests.integration.google_services.test_tasks_integration::test_add_workout_task",
+      "runtime": 1.378
+    },
+    {
+      "test_name": "backend/tests/integration/test_calendar_conflict_resolution.py::backend.tests.integration.test_calendar_conflict_resolution::test_calendar_conflict_resolution_invalid_action",
+      "runtime": 1.239
+    },
+    {
+      "test_name": "backend/tests/integration/test_natural_language_processing_long.py::backend.tests.integration.test_natural_language_processing_long::test_tool_confirmation_messages",
+      "runtime": 1.223
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_get_knowledge_graph",
+      "runtime": 0.851
+    },
+    {
+      "test_name": "backend/tests/integration/test_calendar_conflict_resolution.py::backend.tests.integration.test_calendar_conflict_resolution::test_calendar_conflict_detection",
+      "runtime": 0.781
+    },
+    {
+      "test_name": "backend/tests/integration/google_services/test_tasks_integration.py::backend.tests.integration.google_services.test_tasks_integration::test_create_workout_tasklist",
+      "runtime": 0.756
+    },
+    {
+      "test_name": "::backend.tests.integration.google_services.test_calendar_integration.TestCalendarIntegration::test_fetch_upcoming_events",
+      "runtime": 0.747
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_get_nearby_locations",
+      "runtime": 0.636
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_get_calendar_events",
+      "runtime": 0.431
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_get_tasks",
+      "runtime": 0.42
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_get_fitness_activities",
+      "runtime": 0.244
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_health_check",
+      "runtime": 0.024
+    },
+    {
+      "test_name": "backend/tests/integration/test_agent_workflow_long.py::backend.tests.integration.test_agent_workflow_long::test_agent_initialization",
+      "runtime": 0.004
+    },
+    {
+      "test_name": "backend/tests/integration/test_agent_workflow_long.py::backend.tests.integration.test_agent_workflow_long::test_agent_workflow_creation",
+      "runtime": 0.004
+    },
+    {
+      "test_name": "backend/tests/integration/test_natural_language_processing_long.py::backend.tests.integration.test_natural_language_processing_long::test_tool_result_processing",
+      "runtime": 0.004
+    },
+    {
+      "test_name": "backend/tests/integration/test_agent_workflow_long.py::backend.tests.integration.test_agent_workflow_long::test_tool_creation",
+      "runtime": 0.003
+    },
+    {
+      "test_name": "backend/tests/integration/test_natural_language_processing_long.py::backend.tests.integration.test_natural_language_processing_long::test_tool_execution_with_natural_language",
+      "runtime": 0.003
+    },
+    {
+      "test_name": "::backend.tests.integration.test_agent_state_machine.TestAgentStateMachine::test_decide_next_action_with_tool_call",
+      "runtime": 0.001
+    },
+    {
+      "test_name": "::backend.tests.integration.test_agent_state_machine.TestAgentStateMachine::test_decide_next_action_with_simple_message",
+      "runtime": 0.0
+    },
+    {
+      "test_name": "::backend.tests.integration.test_agent_state_machine.TestAgentStateMachine::test_process_messages_stream_simple_message",
+      "runtime": 0.0
+    },
+    {
+      "test_name": "::backend.tests.integration.test_agent_state_machine.TestAgentStateMachine::test_process_messages_stream_with_tool_call",
+      "runtime": 0.0
+    }
+  ],
+  "total_runtime": 128.56799999999996,
+  "average_runtime": 3.571333333333332
+}

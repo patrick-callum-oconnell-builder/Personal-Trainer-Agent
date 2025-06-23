@@ -67,8 +67,6 @@ class PersonalTrainerAgent:
         self.llm = ChatOpenAI(
             model=AGENT_CONFIG['model'],
             temperature=AGENT_CONFIG['temperature'],
-            streaming=True,
-            callbacks=[StreamingStdOutCallbackHandler()]
         )
         
         # Initialize the ToolManager

@@ -1,0 +1,211 @@
+{
+  "timestamp": "2025-06-23T04:57:48.839230",
+  "summary": {
+    "total_tests": 36,
+    "passed_tests": 31,
+    "failed_tests": 5,
+    "error_tests": 0,
+    "success_rate_percentage": 86.11,
+    "coverage_percentage": 45
+  },
+  "failed_tests": [
+    {
+      "test_name": "::backend.tests.integration.test_agent_state_machine.TestAgentStateMachine::test_decide_next_action_with_simple_message",
+      "status": "failed",
+      "error": "Failed: Timeout (>10.0s) from pytest-timeout.",
+      "error_type": null,
+      "runtime": 10.005,
+      "traceback": "venv/lib/python3.10/site-packages/pytest_asyncio/plugin.py:440: in runtest\n    super().runtest()\nvenv/lib/python3.10/site-packages/pytest_asyncio/plugin.py:907: in inner\n    _loop.run_until_complete(task)\n/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/base_events.py:636: in run_until_complete\n    self.run_forever()\n/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/base_events.py:603: in run_forever\n    self._run_once()\n/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/base_events.py:1871: in _run_once\n    event_list = self._selector.select(timeout)\n/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/selectors.py:562: in select\n    kev_list = self._selector.control(None, max_ev, timeout)\nE   Failed: Timeout (>10.0s) from pytest-timeout.",
+      "stdout": null,
+      "stderr": null
+    },
+    {
+      "test_name": "::backend.tests.integration.test_agent_state_machine.TestAgentStateMachine::test_process_messages_stream_simple_message",
+      "status": "failed",
+      "error": "Failed: Timeout (>10.0s) from pytest-timeout.",
+      "error_type": null,
+      "runtime": 10.002,
+      "traceback": "venv/lib/python3.10/site-packages/pytest_asyncio/plugin.py:440: in runtest\n    super().runtest()\nvenv/lib/python3.10/site-packages/pytest_asyncio/plugin.py:907: in inner\n    _loop.run_until_complete(task)\n/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/base_events.py:636: in run_until_complete\n    self.run_forever()\n/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/base_events.py:603: in run_forever\n    self._run_once()\n/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/base_events.py:1871: in _run_once\n    event_list = self._selector.select(timeout)\n/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/selectors.py:562: in select\n    kev_list = self._selector.control(None, max_ev, timeout)\nE   Failed: Timeout (>10.0s) from pytest-timeout.",
+      "stdout": null,
+      "stderr": null
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_get_knowledge_graph",
+      "status": "failed",
+      "error": "assert 'nodes' in {'entities': {'1 Infinite Loop, Cupertino, CA 95014': {'attributes': {'source': 'pattern_match', 'type': 'location'}, 'type': 'LOCATION'}, '25': {'attributes': {'source': 'pattern_match', 'type': 'age'}, 'type': 'AGE'}, \"Patrick O'Connell\": {'attributes': {'source': 'pattern_match', 'type': 'person'}, 'type': 'PERSON'}, 'broccoli': {'attributes': {'source': 'pattern_match', 'type': 'preference'}, 'type': 'PREFERENCE'}, ...}, 'relations': [{'attributes': {}, 'source': \"Patrick O'Connell\", 'target': \"Patrick O'Connell\", 'type': 'IS_NAMED'}, {'attributes': {}, 'source': \"Patrick O'Connell\", 'target': '25', 'type': 'HAS_AGE'}, {'attributes': {}, 'source': \"Patrick O'Connell\", 'target': 'pizza', 'type': 'LIKES'}, {'attributes': {}, 'source': \"Patrick O'Connell\", 'target': 'broccoli', 'type': 'LIKES'}, {'attributes': {}, 'source': \"Patrick O'Connell\", 'target': 'martial arts', 'type': 'LIKES'}, {'attributes': {}, 'source': \"Patrick O'Connell\", 'target': '1 Infinite Loop, Cupertino, CA 95014', 'type': 'LIVES_AT'}, ...]}",
+      "error_type": null,
+      "runtime": 0.932,
+      "traceback": "backend/tests/integration/test_api.py:116: in test_get_knowledge_graph\n    assert \"nodes\" in response_data\nE   assert 'nodes' in {'entities': {'1 Infinite Loop, Cupertino, CA 95014': {'attributes': {'source': 'pattern_match', 'type': 'location'}, 'type': 'LOCATION'}, '25': {'attributes': {'source': 'pattern_match', 'type': 'age'}, 'type': 'AGE'}, \"Patrick O'Connell\": {'attributes': {'source': 'pattern_match', 'type': 'person'}, 'type': 'PERSON'}, 'broccoli': {'attributes': {'source': 'pattern_match', 'type': 'preference'}, 'type': 'PREFERENCE'}, ...}, 'relations': [{'attributes': {}, 'source': \"Patrick O'Connell\", 'target': \"Patrick O'Connell\", 'type': 'IS_NAMED'}, {'attributes': {}, 'source': \"Patrick O'Connell\", 'target': '25', 'type': 'HAS_AGE'}, {'attributes': {}, 'source': \"Patrick O'Connell\", 'target': 'pizza', 'type': 'LIKES'}, {'attributes': {}, 'source': \"Patrick O'Connell\", 'target': 'broccoli', 'type': 'LIKES'}, {'attributes': {}, 'source': \"Patrick O'Connell\", 'target': 'martial arts', 'type': 'LIKES'}, {'attributes': {}, 'source': \"Patrick O'Connell\", 'target': '1 Infinite Loop, Cupertino, CA 95014', 'type': 'LIVES_AT'}, ...]}",
+      "stdout": null,
+      "stderr": null
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_get_state_history",
+      "status": "failed",
+      "error": "AssertionError: assert 'state_history' in {'history': []}",
+      "error_type": null,
+      "runtime": 0.886,
+      "traceback": "backend/tests/integration/test_api.py:131: in test_get_state_history\n    assert \"state_history\" in response_data\nE   AssertionError: assert 'state_history' in {'history': []}",
+      "stdout": null,
+      "stderr": null
+    },
+    {
+      "test_name": "backend/tests/integration/test_natural_language_processing_long.py::backend.tests.integration.test_natural_language_processing_long::test_tool_result_processing",
+      "status": "failed",
+      "error": "AttributeError: 'NoneType' object has no attribute 'events'",
+      "error_type": null,
+      "runtime": 0.004,
+      "traceback": "backend/tests/integration/test_natural_language_processing_long.py:143: in test_tool_result_processing\n    created_event = await agent.calendar_service.write_event(event_details)\nbackend/google_services/calendar.py:277: in write_event\n    conflicting_events = await self.check_for_conflicts(event_details)\nbackend/google_services/calendar.py:215: in check_for_conflicts\n    conflicting_events = await asyncio.to_thread(fetch)\n/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/threads.py:25: in to_thread\n    return await loop.run_in_executor(None, func_call)\n/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/concurrent/futures/thread.py:58: in run\n    result = self.fn(*self.args, **self.kwargs)\nbackend/google_services/calendar.py:206: in fetch\n    events_result = self.service.events().list(\nE   AttributeError: 'NoneType' object has no attribute 'events'",
+      "stdout": null,
+      "stderr": null
+    }
+  ],
+  "test_runtimes": [
+    {
+      "test_name": "backend/tests/integration/test_natural_language_processing_long.py::backend.tests.integration.test_natural_language_processing_long::test_natural_language_to_calendar_json_conversion",
+      "runtime": 80.67
+    },
+    {
+      "test_name": "backend/tests/integration/test_agent_workflow_long.py::backend.tests.integration.test_agent_workflow_long::test_error_handling",
+      "runtime": 78.292
+    },
+    {
+      "test_name": "backend/tests/integration/test_natural_language_processing_long.py::backend.tests.integration.test_natural_language_processing_long::test_tool_confirmation_messages",
+      "runtime": 78.27
+    },
+    {
+      "test_name": "::backend.tests.integration.test_agent_state_machine.TestAgentStateMachine::test_decide_next_action_with_simple_message",
+      "runtime": 10.005
+    },
+    {
+      "test_name": "::backend.tests.integration.test_agent_state_machine.TestAgentStateMachine::test_process_messages_stream_simple_message",
+      "runtime": 10.002
+    },
+    {
+      "test_name": "backend/tests/integration/google_services/test_gmail_integration.py::backend.tests.integration.google_services.test_gmail_integration::test_get_recent_emails",
+      "runtime": 3.477
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_get_recent_emails",
+      "runtime": 3.444
+    },
+    {
+      "test_name": "::backend.tests.integration.test_agent_state_machine.TestAgentStateMachine::test_decide_next_action_with_tool_call",
+      "runtime": 3.381
+    },
+    {
+      "test_name": "::backend.tests.integration.test_agent_state_machine.TestAgentStateMachine::test_process_messages_stream_with_tool_call",
+      "runtime": 2.592
+    },
+    {
+      "test_name": "backend/tests/integration/google_services/test_sheets_integration.py::backend.tests.integration.google_services.test_sheets_integration::test_add_workout_entry",
+      "runtime": 2.49
+    },
+    {
+      "test_name": "backend/tests/integration/google_services/test_sheets_integration.py::backend.tests.integration.google_services.test_sheets_integration::test_create_workout_tracker",
+      "runtime": 2.468
+    },
+    {
+      "test_name": "backend/tests/integration/google_services/test_maps_integration_long.py::backend.tests.integration.google_services.test_maps_integration_long::test_maps_tool_call",
+      "runtime": 2.363
+    },
+    {
+      "test_name": "backend/tests/integration/test_agent_workflow_long.py::backend.tests.integration.test_agent_workflow_long::test_conversation_loop",
+      "runtime": 1.966
+    },
+    {
+      "test_name": "backend/tests/integration/test_agent_workflow_long.py::backend.tests.integration.test_agent_workflow_long::test_streaming_conversation",
+      "runtime": 1.938
+    },
+    {
+      "test_name": "backend/tests/integration/test_agent_workflow_long.py::backend.tests.integration.test_agent_workflow_long::test_tool_execution_workflow",
+      "runtime": 1.769
+    },
+    {
+      "test_name": "backend/tests/integration/test_natural_language_processing_long.py::backend.tests.integration.test_natural_language_processing_long::test_tool_execution_with_natural_language",
+      "runtime": 1.627
+    },
+    {
+      "test_name": "::backend.tests.integration.google_services.test_calendar_integration.TestCalendarIntegration::test_schedule_workout",
+      "runtime": 1.62
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_chat",
+      "runtime": 1.301
+    },
+    {
+      "test_name": "backend/tests/integration/google_services/test_drive_integration.py::backend.tests.integration.google_services.test_drive_integration::test_upload_workout_plan",
+      "runtime": 1.232
+    },
+    {
+      "test_name": "backend/tests/integration/google_services/test_tasks_integration.py::backend.tests.integration.google_services.test_tasks_integration::test_add_workout_task",
+      "runtime": 1.177
+    },
+    {
+      "test_name": "backend/tests/integration/test_calendar_conflict_resolution.py::backend.tests.integration.test_calendar_conflict_resolution::test_calendar_conflict_resolution_invalid_action",
+      "runtime": 1.026
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_get_nearby_locations",
+      "runtime": 1.009
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_get_knowledge_graph",
+      "runtime": 0.932
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_get_state_history",
+      "runtime": 0.886
+    },
+    {
+      "test_name": "backend/tests/integration/test_calendar_conflict_resolution.py::backend.tests.integration.test_calendar_conflict_resolution::test_calendar_conflict_detection",
+      "runtime": 0.868
+    },
+    {
+      "test_name": "::backend.tests.integration.google_services.test_calendar_integration.TestCalendarIntegration::test_fetch_upcoming_events",
+      "runtime": 0.761
+    },
+    {
+      "test_name": "backend/tests/integration/google_services/test_tasks_integration.py::backend.tests.integration.google_services.test_tasks_integration::test_create_workout_tasklist",
+      "runtime": 0.714
+    },
+    {
+      "test_name": "backend/tests/integration/google_services/test_drive_integration.py::backend.tests.integration.google_services.test_drive_integration::test_create_folder",
+      "runtime": 0.613
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_get_tasks",
+      "runtime": 0.528
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_get_calendar_events",
+      "runtime": 0.525
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_get_fitness_activities",
+      "runtime": 0.452
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_health_check",
+      "runtime": 0.018
+    },
+    {
+      "test_name": "backend/tests/integration/test_natural_language_processing_long.py::backend.tests.integration.test_natural_language_processing_long::test_tool_result_processing",
+      "runtime": 0.004
+    },
+    {
+      "test_name": "backend/tests/integration/test_agent_workflow_long.py::backend.tests.integration.test_agent_workflow_long::test_agent_initialization",
+      "runtime": 0.002
+    },
+    {
+      "test_name": "backend/tests/integration/test_agent_workflow_long.py::backend.tests.integration.test_agent_workflow_long::test_tool_creation",
+      "runtime": 0.002
+    },
+    {
+      "test_name": "backend/tests/integration/test_agent_workflow_long.py::backend.tests.integration.test_agent_workflow_long::test_agent_workflow_creation",
+      "runtime": 0.002
+    }
+  ],
+  "total_runtime": 298.4260000000001,
+  "average_runtime": 8.289611111111114
+}
