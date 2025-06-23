@@ -6,12 +6,14 @@ import os
 import pickle
 from datetime import datetime, timedelta, timezone as dt_timezone
 from typing import List, Dict, Optional, Any, Union
+import pytz
 from pytz import timezone
 import dateparser
 import logging
 from backend.google_services.base import GoogleServiceBase
 from backend.google_services.auth import get_google_credentials
 import asyncio
+from dateutil import parser as dateutil_parser
 
 logger = logging.getLogger(__name__)
 
@@ -197,8 +199,8 @@ class GoogleCalendarService(GoogleServiceBase):
                 end_dt = self.user_tz.localize(end_dt)
             
             # Convert to UTC for API call
-            start_utc = start_dt.astimezone(dt_timezone.utc).isoformat()
-            end_utc = end_dt.astimezone(dt_timezone.utc).isoformat()
+            start_utc = start_dt.astimezone(pytz.utc).isoformat()
+            end_utc = end_dt.astimezone(pytz.utc).isoformat()
             
             def fetch():
                 events_result = self.service.events().list(
@@ -248,7 +250,7 @@ class GoogleCalendarService(GoogleServiceBase):
                 if isinstance(time_value, dict) and ('dateTime' in time_value or 'date' in time_value):
                     # If there's no timeZone field, add it
                     if 'dateTime' in time_value and 'timeZone' not in time_value:
-                        time_value['timeZone'] = 'America/Los_Angeles'
+                        time_value['timeZone'] = self.user_tz.zone
                     continue
                 
                 # If it's a string, parse it
@@ -257,12 +259,12 @@ class GoogleCalendarService(GoogleServiceBase):
                     try:
                         dt = dateparser.parse(time_value, settings={'PREFER_DATES_FROM': 'future'})
                         if dt:
-                            # If no timezone info, assume Pacific Time
+                            # If no timezone info, assume user's timezone
                             if dt.tzinfo is None:
                                 dt = self.user_tz.localize(dt)
                             event_details[time_field] = {
                                 'dateTime': dt.isoformat(),
-                                'timeZone': 'America/Los_Angeles'
+                                'timeZone': self.user_tz.zone
                             }
                             continue
                     except Exception as e:
@@ -438,8 +440,8 @@ class GoogleCalendarService(GoogleServiceBase):
                         if end_date and end_date.tzinfo is None:
                             end_date = self.user_tz.localize(end_date)
                             
-                        start_utc = start_date.astimezone(dt_timezone.utc).isoformat()
-                        end_utc = end_date.astimezone(dt_timezone.utc).isoformat() if end_date else None
+                        start_utc = start_date.astimezone(pytz.utc).isoformat()
+                        end_utc = end_date.astimezone(pytz.utc).isoformat() if end_date else None
                     # If it has start/end keys, use those
                     elif 'start' in time_range or 'end' in time_range:
                         start_str = time_range.get('start', '')
@@ -456,8 +458,8 @@ class GoogleCalendarService(GoogleServiceBase):
                         if end_date and end_date.tzinfo is None:
                             end_date = self.user_tz.localize(end_date)
                             
-                        start_utc = start_date.astimezone(dt_timezone.utc).isoformat()
-                        end_utc = end_date.astimezone(dt_timezone.utc).isoformat() if end_date else None
+                        start_utc = start_date.astimezone(pytz.utc).isoformat()
+                        end_utc = end_date.astimezone(pytz.utc).isoformat() if end_date else None
                     # Otherwise treat the dict as a string
                     else:
                         start_date = dateparser.parse(str(time_range), settings={'PREFER_DATES_FROM': 'future'})
@@ -467,7 +469,7 @@ class GoogleCalendarService(GoogleServiceBase):
                         if start_date.tzinfo is None:
                             start_date = self.user_tz.localize(start_date)
                             
-                        start_utc = start_date.astimezone(dt_timezone.utc).isoformat()
+                        start_utc = start_date.astimezone(pytz.utc).isoformat()
                         end_utc = None
                 else:
                     # Handle string input
@@ -478,7 +480,7 @@ class GoogleCalendarService(GoogleServiceBase):
                     if start_date.tzinfo is None:
                         start_date = self.user_tz.localize(start_date)
                         
-                    start_utc = start_date.astimezone(dt_timezone.utc).isoformat()
+                    start_utc = start_date.astimezone(pytz.utc).isoformat()
                     end_utc = None
 
                 if not start_utc:
