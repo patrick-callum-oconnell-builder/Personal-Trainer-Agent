@@ -9,9 +9,7 @@ from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
 
 # Local imports
-from backend.orchestrated_agent import OrchestratedAgent
-from backend.agent_state_machine import AgentStateMachine
-from backend.agent_state import AgentState
+from backend.agent_orchestration import OrchestratedAgent, AgentStateMachine, AgentState
 from backend.google_services import (
     GoogleCalendarService,
     GoogleDriveService,

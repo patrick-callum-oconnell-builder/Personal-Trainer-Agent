@@ -11,7 +11,7 @@ async def test_create_workout_tasklist(agent):
     # Explicitly await the agent fixture
     agent_instance = await agent
     try:
-        tasklist = await agent_instance.tasks_service.create_workout_tasklist()
+        tasklist = await agent_instance.tool_manager.tasks_service.create_workout_tasklist()
         assert tasklist is not None
         assert 'id' in tasklist
         print(f"Tasks test: Successfully created workout task list with id {tasklist['id']}")
@@ -24,7 +24,7 @@ async def test_add_workout_task(agent):
     agent_instance = await agent
     try:
         # First create a tasklist
-        tasklist = await agent_instance.tasks_service.create_workout_tasklist()
+        tasklist = await agent_instance.tool_manager.tasks_service.create_workout_tasklist()
         assert tasklist is not None
         assert 'id' in tasklist
         
@@ -32,7 +32,7 @@ async def test_add_workout_task(agent):
         workout_name = "Upper Body Workout"
         notes = "Focus on chest and shoulders"
         due_date = datetime(2024, 3, 21, 10, 0, 0, tzinfo=timezone.utc)
-        result = await agent_instance.tasks_service.add_workout_task(
+        result = await agent_instance.tool_manager.tasks_service.add_workout_task(
             tasklist_id=tasklist['id'],
             workout_name=workout_name,
             notes=notes,

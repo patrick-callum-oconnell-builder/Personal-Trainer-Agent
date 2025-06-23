@@ -1,0 +1,207 @@
+{
+  "timestamp": "2025-06-23T13:32:24.996570",
+  "summary": {
+    "total_tests": 45,
+    "passed_tests": 44,
+    "failed_tests": 1,
+    "error_tests": 0,
+    "success_rate_percentage": 97.78,
+    "coverage_percentage": 53
+  },
+  "failed_tests": [
+    {
+      "test_name": "::backend.tests.integration.test_agent_state_machine.TestAgentStateMachine::test_process_messages_stream_with_tool_call",
+      "status": "failed",
+      "error": "Failed: Timeout (>10.0s) from pytest-timeout.",
+      "error_type": null,
+      "runtime": 10.011,
+      "traceback": "venv/lib/python3.10/site-packages/pytest_asyncio/plugin.py:440: in runtest\n    super().runtest()\nvenv/lib/python3.10/site-packages/pytest_asyncio/plugin.py:907: in inner\n    _loop.run_until_complete(task)\n/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/base_events.py:636: in run_until_complete\n    self.run_forever()\n/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/base_events.py:603: in run_forever\n    self._run_once()\n/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/base_events.py:1871: in _run_once\n    event_list = self._selector.select(timeout)\n/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/selectors.py:562: in select\n    kev_list = self._selector.control(None, max_ev, timeout)\nE   Failed: Timeout (>10.0s) from pytest-timeout.",
+      "stdout": null,
+      "stderr": null
+    }
+  ],
+  "test_runtimes": [
+    {
+      "test_name": "::backend.tests.integration.test_agent_state_machine.TestAgentStateMachine::test_process_messages_stream_with_tool_call",
+      "runtime": 10.011
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_process_messages",
+      "runtime": 6.452
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_get_recent_emails",
+      "runtime": 3.57
+    },
+    {
+      "test_name": "backend/tests/integration/google_services/test_sheets_integration.py::backend.tests.integration.google_services.test_sheets_integration::test_add_workout_entry",
+      "runtime": 3.558
+    },
+    {
+      "test_name": "backend/tests/integration/google_services/test_gmail_integration.py::backend.tests.integration.google_services.test_gmail_integration::test_get_recent_emails",
+      "runtime": 3.525
+    },
+    {
+      "test_name": "backend/tests/integration/google_services/test_sheets_integration.py::backend.tests.integration.google_services.test_sheets_integration::test_create_workout_tracker",
+      "runtime": 2.674
+    },
+    {
+      "test_name": "::backend.tests.integration.google_services.test_calendar_integration.TestCalendarIntegration::test_schedule_workout",
+      "runtime": 1.875
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_get_knowledge_graph",
+      "runtime": 1.647
+    },
+    {
+      "test_name": "backend/tests/integration/google_services/test_drive_integration.py::backend.tests.integration.google_services.test_drive_integration::test_upload_workout_plan",
+      "runtime": 1.571
+    },
+    {
+      "test_name": "backend/tests/integration/google_services/test_tasks_integration.py::backend.tests.integration.google_services.test_tasks_integration::test_add_workout_task",
+      "runtime": 1.392
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_chat",
+      "runtime": 1.273
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_get_state_history",
+      "runtime": 1.137
+    },
+    {
+      "test_name": "::backend.tests.integration.test_agent_state_machine.TestAgentStateMachine::test_process_messages_stream_simple_message",
+      "runtime": 1.108
+    },
+    {
+      "test_name": "::backend.tests.integration.test_agent_state_machine.TestAgentStateMachine::test_decide_next_action_with_simple_message",
+      "runtime": 0.977
+    },
+    {
+      "test_name": "::backend.tests.integration.google_services.test_calendar_integration.TestCalendarIntegration::test_fetch_upcoming_events",
+      "runtime": 0.906
+    },
+    {
+      "test_name": "backend/tests/integration/test_calendar_conflict_resolution.py::backend.tests.integration.test_calendar_conflict_resolution::test_calendar_conflict_resolution_invalid_action",
+      "runtime": 0.87
+    },
+    {
+      "test_name": "::backend.tests.integration.test_agent_state_machine.TestAgentStateMachine::test_decide_next_action_with_tool_call",
+      "runtime": 0.827
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_get_nearby_locations",
+      "runtime": 0.768
+    },
+    {
+      "test_name": "backend/tests/integration/google_services/test_tasks_integration.py::backend.tests.integration.google_services.test_tasks_integration::test_create_workout_tasklist",
+      "runtime": 0.767
+    },
+    {
+      "test_name": "backend/tests/integration/test_calendar_conflict_resolution.py::backend.tests.integration.test_calendar_conflict_resolution::test_calendar_conflict_detection",
+      "runtime": 0.725
+    },
+    {
+      "test_name": "backend/tests/integration/google_services/test_drive_integration.py::backend.tests.integration.google_services.test_drive_integration::test_create_folder",
+      "runtime": 0.709
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_get_tasks",
+      "runtime": 0.456
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_get_calendar_events",
+      "runtime": 0.413
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_get_fitness_activities",
+      "runtime": 0.378
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_calendar_tools",
+      "runtime": 0.042
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_sheets_tools",
+      "runtime": 0.029
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_drive_tools",
+      "runtime": 0.02
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_tasks_tools",
+      "runtime": 0.019
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_gmail_tools",
+      "runtime": 0.017
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_health_check",
+      "runtime": 0.016
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_tool_creation",
+      "runtime": 0.016
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_initialization",
+      "runtime": 0.013
+    },
+    {
+      "test_name": "::backend.tests.unit.test_services.TestGoogleServices::test_calendar_service",
+      "runtime": 0.012
+    },
+    {
+      "test_name": "::backend.tests.unit.test_services.TestGoogleServices::test_drive_service",
+      "runtime": 0.012
+    },
+    {
+      "test_name": "::backend.tests.unit.test_services.TestGoogleServices::test_tasks_service",
+      "runtime": 0.012
+    },
+    {
+      "test_name": "::backend.tests.unit.test_services.TestGoogleServices::test_fit_service",
+      "runtime": 0.011
+    },
+    {
+      "test_name": "::backend.tests.unit.test_services.TestGoogleServices::test_maps_service",
+      "runtime": 0.011
+    },
+    {
+      "test_name": "::backend.tests.unit.test_services.TestGoogleServices::test_sheets_service",
+      "runtime": 0.011
+    },
+    {
+      "test_name": "backend/tests/unit/test_knowledge_graph.py::backend.tests.unit.test_knowledge_graph::test_persistence",
+      "runtime": 0.002
+    },
+    {
+      "test_name": "backend/tests/unit/test_knowledge_graph.py::backend.tests.unit.test_knowledge_graph::test_prompt_parsing",
+      "runtime": 0.001
+    },
+    {
+      "test_name": "backend/tests/unit/test_knowledge_graph.py::backend.tests.unit.test_knowledge_graph::test_entity_creation",
+      "runtime": 0.0
+    },
+    {
+      "test_name": "backend/tests/unit/test_knowledge_graph.py::backend.tests.unit.test_knowledge_graph::test_relation_creation",
+      "runtime": 0.0
+    },
+    {
+      "test_name": "backend/tests/unit/test_knowledge_graph.py::backend.tests.unit.test_knowledge_graph::test_query_method",
+      "runtime": 0.0
+    },
+    {
+      "test_name": "backend/tests/unit/test_knowledge_graph.py::backend.tests.unit.test_knowledge_graph::test_pattern_matching",
+      "runtime": 0.0
+    },
+    {
+      "test_name": "backend/tests/unit/test_knowledge_graph.py::backend.tests.unit.test_knowledge_graph::test_relationship_indicators",
+      "runtime": 0.0
+    }
+  ],
+  "total_runtime": 47.83300000000001,
+  "average_runtime": 1.0629555555555559
+}

@@ -16,7 +16,7 @@ class TestCalendarIntegration(BaseIntegrationTest):
         agent_instance = await agent
         try:
             # Fetch upcoming events using the agent's calendar service
-            events = await agent_instance.calendar_service.get_upcoming_events()
+            events = await agent_instance.tool_manager.calendar_service.get_upcoming_events()
             assert isinstance(events, list)
             print(f"Calendar test: Successfully fetched {len(events)} upcoming events")
         except Exception as e:
@@ -43,13 +43,13 @@ class TestCalendarIntegration(BaseIntegrationTest):
             }
             
             # Schedule the workout using the agent's calendar service
-            result = await agent_instance.calendar_service.write_event(workout)
+            result = await agent_instance.tool_manager.calendar_service.write_event(workout)
             assert result is not None
             
             # Check if we got a conflict response
             if 'type' in result and result['type'] == 'conflict':
                 # If there's a conflict, try to resolve it by replacing the conflicting event
-                result = await agent_instance.calendar_service.resolve_conflict(
+                result = await agent_instance.tool_manager.calendar_service.resolve_conflict(
                     result['proposed_event'],
                     result['conflicting_events'],
                     'replace'

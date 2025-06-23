@@ -1,0 +1,297 @@
+{
+  "timestamp": "2025-06-23T13:26:51.699545",
+  "summary": {
+    "total_tests": 45,
+    "passed_tests": 35,
+    "failed_tests": 10,
+    "error_tests": 0,
+    "success_rate_percentage": 77.78,
+    "coverage_percentage": 50
+  },
+  "failed_tests": [
+    {
+      "test_name": "::backend.tests.integration.test_agent_state_machine.TestAgentStateMachine::test_decide_next_action_with_tool_call",
+      "status": "failed",
+      "error": "Failed: Timeout (>10.0s) from pytest-timeout.",
+      "error_type": null,
+      "runtime": 10.01,
+      "traceback": "venv/lib/python3.10/site-packages/pytest_asyncio/plugin.py:440: in runtest\n    super().runtest()\nvenv/lib/python3.10/site-packages/pytest_asyncio/plugin.py:907: in inner\n    _loop.run_until_complete(task)\n/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/base_events.py:636: in run_until_complete\n    self.run_forever()\n/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/base_events.py:603: in run_forever\n    self._run_once()\n/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/asyncio/base_events.py:1871: in _run_once\n    event_list = self._selector.select(timeout)\n/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/selectors.py:562: in select\n    kev_list = self._selector.control(None, max_ev, timeout)\nE   Failed: Timeout (>10.0s) from pytest-timeout.",
+      "stdout": null,
+      "stderr": null
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_chat",
+      "status": "failed",
+      "error": "assert 500 == 200\n +  where 500 = <Response [500 Internal Server Error]>.status_code",
+      "error_type": null,
+      "runtime": 0.01,
+      "traceback": "backend/tests/integration/test_api.py:41: in test_chat\n    assert response.status_code == 200\nE   assert 500 == 200\nE    +  where 500 = <Response [500 Internal Server Error]>.status_code",
+      "stdout": null,
+      "stderr": null
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_calendar_tools",
+      "status": "failed",
+      "error": "AttributeError: 'PersonalTrainerAgent' object has no attribute 'async_init'",
+      "error_type": null,
+      "runtime": 0.037,
+      "traceback": "backend/tests/unit/test_agent.py:73: in asyncSetUp\n    await self.agent.async_init()\nE   AttributeError: 'PersonalTrainerAgent' object has no attribute 'async_init'",
+      "stdout": null,
+      "stderr": null
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_drive_tools",
+      "status": "failed",
+      "error": "AttributeError: 'PersonalTrainerAgent' object has no attribute 'async_init'",
+      "error_type": null,
+      "runtime": 0.013,
+      "traceback": "backend/tests/unit/test_agent.py:73: in asyncSetUp\n    await self.agent.async_init()\nE   AttributeError: 'PersonalTrainerAgent' object has no attribute 'async_init'",
+      "stdout": null,
+      "stderr": null
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_gmail_tools",
+      "status": "failed",
+      "error": "AttributeError: 'PersonalTrainerAgent' object has no attribute 'async_init'",
+      "error_type": null,
+      "runtime": 0.012,
+      "traceback": "backend/tests/unit/test_agent.py:73: in asyncSetUp\n    await self.agent.async_init()\nE   AttributeError: 'PersonalTrainerAgent' object has no attribute 'async_init'",
+      "stdout": null,
+      "stderr": null
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_initialization",
+      "status": "failed",
+      "error": "AttributeError: 'PersonalTrainerAgent' object has no attribute 'async_init'",
+      "error_type": null,
+      "runtime": 0.012,
+      "traceback": "backend/tests/unit/test_agent.py:73: in asyncSetUp\n    await self.agent.async_init()\nE   AttributeError: 'PersonalTrainerAgent' object has no attribute 'async_init'",
+      "stdout": null,
+      "stderr": null
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_process_messages",
+      "status": "failed",
+      "error": "AttributeError: 'PersonalTrainerAgent' object has no attribute 'async_init'",
+      "error_type": null,
+      "runtime": 0.012,
+      "traceback": "backend/tests/unit/test_agent.py:73: in asyncSetUp\n    await self.agent.async_init()\nE   AttributeError: 'PersonalTrainerAgent' object has no attribute 'async_init'",
+      "stdout": null,
+      "stderr": null
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_sheets_tools",
+      "status": "failed",
+      "error": "AttributeError: 'PersonalTrainerAgent' object has no attribute 'async_init'",
+      "error_type": null,
+      "runtime": 0.012,
+      "traceback": "backend/tests/unit/test_agent.py:73: in asyncSetUp\n    await self.agent.async_init()\nE   AttributeError: 'PersonalTrainerAgent' object has no attribute 'async_init'",
+      "stdout": null,
+      "stderr": null
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_tasks_tools",
+      "status": "failed",
+      "error": "AttributeError: 'PersonalTrainerAgent' object has no attribute 'async_init'",
+      "error_type": null,
+      "runtime": 0.012,
+      "traceback": "backend/tests/unit/test_agent.py:73: in asyncSetUp\n    await self.agent.async_init()\nE   AttributeError: 'PersonalTrainerAgent' object has no attribute 'async_init'",
+      "stdout": null,
+      "stderr": null
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_tool_creation",
+      "status": "failed",
+      "error": "AttributeError: 'PersonalTrainerAgent' object has no attribute 'async_init'",
+      "error_type": null,
+      "runtime": 0.012,
+      "traceback": "backend/tests/unit/test_agent.py:73: in asyncSetUp\n    await self.agent.async_init()\nE   AttributeError: 'PersonalTrainerAgent' object has no attribute 'async_init'",
+      "stdout": null,
+      "stderr": null
+    }
+  ],
+  "test_runtimes": [
+    {
+      "test_name": "::backend.tests.integration.test_agent_state_machine.TestAgentStateMachine::test_decide_next_action_with_tool_call",
+      "runtime": 10.01
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_get_recent_emails",
+      "runtime": 3.541
+    },
+    {
+      "test_name": "backend/tests/integration/google_services/test_gmail_integration.py::backend.tests.integration.google_services.test_gmail_integration::test_get_recent_emails",
+      "runtime": 3.519
+    },
+    {
+      "test_name": "backend/tests/integration/google_services/test_sheets_integration.py::backend.tests.integration.google_services.test_sheets_integration::test_create_workout_tracker",
+      "runtime": 2.767
+    },
+    {
+      "test_name": "backend/tests/integration/google_services/test_sheets_integration.py::backend.tests.integration.google_services.test_sheets_integration::test_add_workout_entry",
+      "runtime": 2.546
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_get_knowledge_graph",
+      "runtime": 2.17
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_get_state_history",
+      "runtime": 1.786
+    },
+    {
+      "test_name": "backend/tests/integration/google_services/test_drive_integration.py::backend.tests.integration.google_services.test_drive_integration::test_upload_workout_plan",
+      "runtime": 1.488
+    },
+    {
+      "test_name": "::backend.tests.integration.google_services.test_calendar_integration.TestCalendarIntegration::test_schedule_workout",
+      "runtime": 1.422
+    },
+    {
+      "test_name": "backend/tests/integration/google_services/test_tasks_integration.py::backend.tests.integration.google_services.test_tasks_integration::test_add_workout_task",
+      "runtime": 1.25
+    },
+    {
+      "test_name": "::backend.tests.integration.test_agent_state_machine.TestAgentStateMachine::test_process_messages_stream_with_tool_call",
+      "runtime": 1.158
+    },
+    {
+      "test_name": "::backend.tests.integration.test_agent_state_machine.TestAgentStateMachine::test_process_messages_stream_simple_message",
+      "runtime": 0.974
+    },
+    {
+      "test_name": "backend/tests/integration/test_calendar_conflict_resolution.py::backend.tests.integration.test_calendar_conflict_resolution::test_calendar_conflict_resolution_invalid_action",
+      "runtime": 0.921
+    },
+    {
+      "test_name": "backend/tests/integration/test_calendar_conflict_resolution.py::backend.tests.integration.test_calendar_conflict_resolution::test_calendar_conflict_detection",
+      "runtime": 0.853
+    },
+    {
+      "test_name": "backend/tests/integration/google_services/test_tasks_integration.py::backend.tests.integration.google_services.test_tasks_integration::test_create_workout_tasklist",
+      "runtime": 0.842
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_get_nearby_locations",
+      "runtime": 0.838
+    },
+    {
+      "test_name": "::backend.tests.integration.test_agent_state_machine.TestAgentStateMachine::test_decide_next_action_with_simple_message",
+      "runtime": 0.773
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_get_tasks",
+      "runtime": 0.751
+    },
+    {
+      "test_name": "::backend.tests.integration.google_services.test_calendar_integration.TestCalendarIntegration::test_fetch_upcoming_events",
+      "runtime": 0.724
+    },
+    {
+      "test_name": "backend/tests/integration/google_services/test_drive_integration.py::backend.tests.integration.google_services.test_drive_integration::test_create_folder",
+      "runtime": 0.653
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_get_calendar_events",
+      "runtime": 0.483
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_get_fitness_activities",
+      "runtime": 0.295
+    },
+    {
+      "test_name": "::backend.tests.unit.test_services.TestGoogleServices::test_tasks_service",
+      "runtime": 0.06
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_calendar_tools",
+      "runtime": 0.037
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_health_check",
+      "runtime": 0.036
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_drive_tools",
+      "runtime": 0.013
+    },
+    {
+      "test_name": "::backend.tests.unit.test_services.TestGoogleServices::test_calendar_service",
+      "runtime": 0.013
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_gmail_tools",
+      "runtime": 0.012
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_initialization",
+      "runtime": 0.012
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_process_messages",
+      "runtime": 0.012
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_sheets_tools",
+      "runtime": 0.012
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_tasks_tools",
+      "runtime": 0.012
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_tool_creation",
+      "runtime": 0.012
+    },
+    {
+      "test_name": "::backend.tests.unit.test_services.TestGoogleServices::test_drive_service",
+      "runtime": 0.011
+    },
+    {
+      "test_name": "::backend.tests.unit.test_services.TestGoogleServices::test_fit_service",
+      "runtime": 0.011
+    },
+    {
+      "test_name": "::backend.tests.unit.test_services.TestGoogleServices::test_maps_service",
+      "runtime": 0.011
+    },
+    {
+      "test_name": "::backend.tests.unit.test_services.TestGoogleServices::test_sheets_service",
+      "runtime": 0.011
+    },
+    {
+      "test_name": "backend/tests/integration/test_api.py::backend.tests.integration.test_api::test_chat",
+      "runtime": 0.01
+    },
+    {
+      "test_name": "backend/tests/unit/test_knowledge_graph.py::backend.tests.unit.test_knowledge_graph::test_persistence",
+      "runtime": 0.002
+    },
+    {
+      "test_name": "backend/tests/unit/test_knowledge_graph.py::backend.tests.unit.test_knowledge_graph::test_prompt_parsing",
+      "runtime": 0.001
+    },
+    {
+      "test_name": "backend/tests/unit/test_knowledge_graph.py::backend.tests.unit.test_knowledge_graph::test_pattern_matching",
+      "runtime": 0.001
+    },
+    {
+      "test_name": "backend/tests/unit/test_knowledge_graph.py::backend.tests.unit.test_knowledge_graph::test_entity_creation",
+      "runtime": 0.0
+    },
+    {
+      "test_name": "backend/tests/unit/test_knowledge_graph.py::backend.tests.unit.test_knowledge_graph::test_relation_creation",
+      "runtime": 0.0
+    },
+    {
+      "test_name": "backend/tests/unit/test_knowledge_graph.py::backend.tests.unit.test_knowledge_graph::test_query_method",
+      "runtime": 0.0
+    },
+    {
+      "test_name": "backend/tests/unit/test_knowledge_graph.py::backend.tests.unit.test_knowledge_graph::test_relationship_indicators",
+      "runtime": 0.0
+    }
+  ],
+  "total_runtime": 40.053000000000004,
+  "average_runtime": 0.8900666666666668
+}

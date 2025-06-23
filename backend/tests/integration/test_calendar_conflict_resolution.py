@@ -42,7 +42,6 @@ async def agent():
         sheets_service=GoogleSheetsService(),
         maps_service=GoogleMapsService(api_key=os.getenv("GOOGLE_MAPS_API_KEY"))
     )
-    await agent.async_init()
     return agent
 
 @pytest.mark.asyncio
@@ -63,7 +62,7 @@ async def test_calendar_conflict_detection(agent):
     }
 
     # Create the initial event
-    await agent.calendar_service.write_event(test_event)
+    await agent.tool_manager.calendar_service.write_event(test_event)
 
     # Try to create a conflicting event
     conflicting_event = {
@@ -79,7 +78,7 @@ async def test_calendar_conflict_detection(agent):
     }
 
     # Check for conflicts
-    conflicts = await agent.calendar_service.check_for_conflicts(conflicting_event)
+    conflicts = await agent.tool_manager.calendar_service.check_for_conflicts(conflicting_event)
     assert len(conflicts) > 0
 
 @pytest.mark.asyncio

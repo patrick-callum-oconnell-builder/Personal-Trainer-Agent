@@ -19,7 +19,7 @@ from pydantic import validator
 import asyncio
 import json
 from backend.knowledge_graph import KnowledgeGraph, KNOWLEDGE_GRAPH_PROMPT
-from backend.agent_state import AgentState
+from backend.agent_orchestration import AgentState
 
 # Configure logger
 logger = logging.getLogger(__name__)
@@ -78,9 +78,9 @@ async def initialize_services():
         raise RuntimeError(f"Failed to initialize services: {str(e)}")
 
 async def get_agent():
-    """Get or create an agent instance."""
+    """Get or create the agent instance."""
     global _agent
-    if not _agent:
+    if _agent is None:
         _agent = PersonalTrainerAgent(
             calendar_service=calendar_service,
             gmail_service=gmail_service,
@@ -89,7 +89,6 @@ async def get_agent():
             sheets_service=sheets_service,
             maps_service=maps_service
         )
-        await _agent.async_init()
     return _agent
 
 class Message(BaseModel):

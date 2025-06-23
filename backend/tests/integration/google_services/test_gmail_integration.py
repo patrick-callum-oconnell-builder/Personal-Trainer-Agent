@@ -11,7 +11,7 @@ async def test_get_recent_emails(agent):
     agent_instance = await agent
     try:
         # Fetch recent emails using the agent's gmail service
-        emails = await agent_instance.gmail_service.get_recent_emails()
+        emails = await agent_instance.tool_manager.gmail_service.get_recent_emails()
         assert isinstance(emails, list)
         print(f"Gmail test: Successfully fetched {len(emails)} emails")
     except Exception as e:

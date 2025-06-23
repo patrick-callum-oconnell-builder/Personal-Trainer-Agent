@@ -13,7 +13,7 @@ async def test_create_folder(agent):
     # Explicitly await the agent fixture
     agent_instance = await agent
     try:
-        folder = await agent_instance.drive_service.create_folder("Workout Plans")
+        folder = await agent_instance.tool_manager.drive_service.create_folder("Workout Plans")
         assert folder is not None
         assert 'id' in folder
         print(f"Drive test: Successfully created workout folder")
@@ -41,7 +41,7 @@ async def test_upload_workout_plan(agent):
             temp_file_path = f.name
         
         # Upload the workout plan using the agent's drive service (not async)
-        result = agent_instance.drive_service.upload_file(temp_file_path, name="Upper Body Workout Plan.json")
+        result = agent_instance.tool_manager.drive_service.upload_file(temp_file_path, name="Upper Body Workout Plan.json")
         assert result is not None
         assert 'id' in result
         print(f"Drive test: Successfully uploaded workout plan")

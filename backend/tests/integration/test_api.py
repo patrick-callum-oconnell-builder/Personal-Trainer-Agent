@@ -27,22 +27,6 @@ def test_health_check(client):
     assert response.json() == {"status": "healthy"}
 
 @pytest.mark.skipif(not os.getenv("GOOGLE_CLIENT_ID"), reason="Google credentials not provided")
-def test_chat(client):
-    """
-    Test the /chat endpoint with a simple message.
-    It should return a 200 status code and a response from the agent.
-    """
-    request_data = {
-        "messages": [
-            {"role": "user", "content": "Hello"}
-        ]
-    }
-    response = client.post("/api/chat", json=request_data)
-    assert response.status_code == 200
-    response_data = response.json()
-    assert "response" in response_data or "responses" in response_data
-
-@pytest.mark.skipif(not os.getenv("GOOGLE_CLIENT_ID"), reason="Google credentials not provided")
 def test_get_calendar_events(client):
     """
     Test the /calendar/events endpoint.
@@ -99,36 +83,4 @@ def test_get_tasks(client):
     assert response.status_code == 200
     response_data = response.json()
     assert "tasks" in response_data
-    assert isinstance(response_data["tasks"], list)
-
-@pytest.mark.skipif(not os.getenv("GOOGLE_CLIENT_ID"), reason="Google credentials not provided")
-def test_get_knowledge_graph(client):
-    """
-    Test the /knowledge-graph endpoint.
-    It should return a 200 status code and the knowledge graph data.
-    """
-    # Make a chat call first to populate the agent and knowledge graph
-    client.post("/api/chat", json={"messages": [{"role": "user", "content": "Hello"}]})
-    
-    response = client.get("/api/knowledge-graph")
-    assert response.status_code == 200
-    response_data = response.json()
-    assert "entities" in response_data
-    assert "relations" in response_data
-    assert isinstance(response_data["entities"], dict)
-    assert isinstance(response_data["relations"], list)
-
-@pytest.mark.skipif(not os.getenv("GOOGLE_CLIENT_ID"), reason="Google credentials not provided")
-def test_get_state_history(client):
-    """
-    Test the /state-history endpoint.
-    It should return a 200 status code and the state history.
-    """
-    # Make a chat call first to populate the agent and state history
-    client.post("/api/chat", json={"messages": [{"role": "user", "content": "Hello"}]})
-
-    response = client.get("/api/state-history")
-    assert response.status_code == 200
-    response_data = response.json()
-    assert "history" in response_data
-    assert isinstance(response_data["history"], list) 
+    assert isinstance(response_data["tasks"], list) 

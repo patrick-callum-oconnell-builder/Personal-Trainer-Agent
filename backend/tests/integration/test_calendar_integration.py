@@ -22,5 +22,4 @@ async def agent():
         sheets_service=None,
         maps_service=None
     )
-    await agent.async_init()
     return agent

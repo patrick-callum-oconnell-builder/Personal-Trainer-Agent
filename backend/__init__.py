@@ -1,9 +1,7 @@
 """Backend package for the Personal Trainer AI application."""
 
-from .orchestrated_agent import OrchestratedAgent
+from .agent_orchestration import OrchestratedAgent, AgentState, AgentStateMachine
 from .personal_trainer_agent import PersonalTrainerAgent
-from .agent_state import AgentState
-from .agent_state_machine import AgentStateMachine
 from .google_services.calendar import GoogleCalendarService
 from .google_services.gmail import GoogleGmailService
 from .google_services.maps import GoogleMapsService
