@@ -58,12 +58,14 @@ export GOOGLE_CLIENT_SECRET='your-google-client-secret'
 export GOOGLE_MAPS_API_KEY='your-google-maps-api-key'  # Optional, for location features
 ```
 
-5. Start the backend server:
+5. Start the application (both backend and frontend):
 ```bash
-python main.py
+python run.py
 ```
 
-### Frontend Setup
+### Frontend Setup (Alternative)
+
+If you want to run the frontend separately:
 
 1. Install the required packages:
 ```bash
