@@ -4,7 +4,8 @@ import logging
 import os
 import re
 from datetime import datetime, timedelta, timezone
-from typing import Any, Dict, List, Optional
+from typing import Any, Dict, List, Optional, AsyncGenerator
+import json
 
 # Third-party imports
 from dotenv import load_dotenv
@@ -12,6 +13,9 @@ from langchain.schema import BaseMessage
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_openai import ChatOpenAI
 from pydantic.v1 import BaseModel, Field
+from langchain.callbacks import StreamingStdOutCallbackHandler
+from langchain_core.callbacks import StreamingStdOutCallbackHandler
+from langgraph.graph import StateGraph, END
 
 # Local imports
 from backend.agent_state_machine import AgentStateMachine
@@ -24,10 +28,18 @@ from backend.google_services import (
     GoogleTasksService,
 )
 from backend.time_formatting import extract_timeframe_from_text
-from backend.tool_manager import ToolManager
+from backend.tools.tool_manager import ToolManager
+from backend.agent_state import AgentState
 
 load_dotenv()
 logger = logging.getLogger(__name__)
+
+# Load configuration
+CONFIG_PATH = os.path.join(os.path.dirname(__file__), 'config.json')
+with open(CONFIG_PATH, 'r') as f:
+    config = json.load(f)
+
+AGENT_CONFIG = config['llm']['agent']
 
 class PersonalTrainerAgent:
     """
@@ -53,9 +65,10 @@ class PersonalTrainerAgent:
         
         # Initialize the LLM
         self.llm = ChatOpenAI(
-            model="gpt-4-turbo-preview",
-            temperature=0.7,
-            streaming=True
+            model=AGENT_CONFIG['model'],
+            temperature=AGENT_CONFIG['temperature'],
+            streaming=True,
+            callbacks=[StreamingStdOutCallbackHandler()]
         )
         
         # Initialize the ToolManager
@@ -68,6 +81,9 @@ class PersonalTrainerAgent:
             maps_service=self.maps_service,
             llm=self.llm
         )
+        
+        self.agent_state = AgentState()
+        self.graph = self._build_graph()
         
     async def async_init(self):
         """Initialize the agent asynchronously."""
@@ -142,3 +158,25 @@ class PersonalTrainerAgent:
         if preference.lower() == 'none' or not preference:
             return None
         return preference
+
+    def _build_graph(self):
+        # Implementation of _build_graph method
+        pass
+
+    async def agent_conversation_loop(self, user_message: str) -> List[str]:
+        """Process a user message and return a list of responses."""
+        try:
+            # Create messages for the LLM
+            messages = [
+                SystemMessage(content="You are a helpful personal trainer AI assistant. Always respond in clear, natural language. Be concise and direct in stating what action you're about to take."),
+                HumanMessage(content=user_message)
+            ]
+            
+            # Get response from LLM
+            response = await self.llm.ainvoke(messages)
+            
+            # Return the response as a list
+            return [response.content]
+        except Exception as e:
+            logger.error(f"Error in agent conversation loop: {str(e)}")
+            return [f"I encountered an error: {str(e)}"]

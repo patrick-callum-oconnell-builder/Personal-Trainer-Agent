@@ -67,6 +67,8 @@ def wait_for_input_enabled(driver, timeout=30):
         print(driver.page_source)
         raise
 
+@pytest.mark.e2e
+@pytest.mark.slow
 def test_calendar_workflow():
     """Test creating a workout event and verifying it appears in the upcoming events list."""
     # Kill any existing processes on the required ports
@@ -159,6 +161,8 @@ def test_calendar_workflow():
         process.terminate()
         process.wait()
 
+@pytest.mark.e2e
+@pytest.mark.slow
 def test_sheets_workflow():
     """Test creating a Google Sheet and writing data to it."""
     # Kill any existing processes on the required ports
@@ -228,8 +232,10 @@ def test_sheets_workflow():
         process.terminate()
         process.wait()
 
+@pytest.mark.e2e
+@pytest.mark.slow
 def test_greeting_flow():
-    """Test sending a greeting message and verifying the agent's response."""
+    """Test basic greeting and conversation flow."""
     # Kill any existing processes on the required ports
     kill_process_on_port(8000)
     kill_process_on_port(3000)

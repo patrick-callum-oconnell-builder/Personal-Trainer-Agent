@@ -12,12 +12,15 @@ This module contains all tool-related functionality including:
 import json
 import logging
 import asyncio
+import os
+import pytz
 from datetime import datetime, timedelta, timezone as dt_timezone
 from typing import List, Dict, Any, Optional, Union
 from pydantic.v1 import BaseModel, Field
 from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from langchain_core.tools import Tool
 from langchain_openai import ChatOpenAI
+from langchain.callbacks.streaming_stdout import StreamingStdOutCallbackHandler
 
 from backend.google_services import (
     GoogleCalendarService,
@@ -28,15 +31,23 @@ from backend.google_services import (
     GoogleSheetsService,
     GoogleTasksService,
 )
-from backend.tools import (
+from . import (
     get_calendar_events,
     add_preference_to_kg,
 )
 from backend.time_formatting import extract_timeframe_from_text
-from backend.tools.maps_tools import FindNearbyWorkoutLocationsInput
+from .maps_tools import FindNearbyWorkoutLocationsInput
+from backend.google_services.base import GoogleServiceBase
 
 logger = logging.getLogger(__name__)
 
+# Load configuration
+CONFIG_PATH = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config.json')
+with open(CONFIG_PATH, 'r') as f:
+    config = json.load(f)
+
+TOOL_MANAGER_CONFIG = config['llm']['tool_manager']
+DEFAULTS_CONFIG = config['defaults']
 
 class ToolManager:
     """
@@ -63,11 +74,21 @@ class ToolManager:
         self.drive_service = drive_service
         self.sheets_service = sheets_service
         self.maps_service = maps_service
-        self.llm = llm or ChatOpenAI(
-            model="gpt-4-turbo-preview",
-            temperature=0.7,
-            streaming=True
-        )
+        
+        # Initialize the LLM
+        if llm:
+            self.llm = llm
+        else:
+            self.llm = ChatOpenAI(
+                model=TOOL_MANAGER_CONFIG['model'],
+                temperature=TOOL_MANAGER_CONFIG['temperature'],
+                streaming=True,
+                callbacks=[StreamingStdOutCallbackHandler()]
+            )
+        
+        # Get user's timezone from environment variable, default to config
+        self.user_timezone = os.environ.get("USER_TIMEZONE", DEFAULTS_CONFIG['user_timezone'])
+        
         self.tools: List[Tool] = []
         self._create_tools()
     

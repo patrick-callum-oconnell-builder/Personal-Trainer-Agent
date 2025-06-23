@@ -41,7 +41,7 @@ async def startup_event():
 if __name__ == "__main__":
     logger.info("Starting server...")
     uvicorn.run(
-        "main:app",
+        "backend.main:app",
         host="0.0.0.0",
         port=8000,
         reload=True,

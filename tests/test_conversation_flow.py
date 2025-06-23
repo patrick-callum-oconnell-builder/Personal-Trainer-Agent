@@ -11,6 +11,8 @@ from selenium.webdriver.support import expected_conditions as EC
 from selenium.webdriver.chrome.options import Options
 import openai
 
+@pytest.mark.e2e
+@pytest.mark.slow
 def test_basic_conversation():
     """Test basic conversation flow with a greeting message."""
     # Start the application

@@ -1,0 +1,15 @@
+{
+  "llm": {
+    "agent": {
+      "model": "gpt-4o",
+      "temperature": 0.7
+    },
+    "tool_manager": {
+      "model": "gpt-4o",
+      "temperature": 0.0
+    }
+  },
+  "defaults": {
+    "user_timezone": "America/Los_Angeles"
+  }
+} 

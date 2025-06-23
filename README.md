@@ -57,9 +57,11 @@ agent_personal_trainer/
 │   │   ├── fit.py             # Google Fit integration
 │   │   └── auth.py            # Google authentication
 │   ├── tools/                 # Agent tools
+│   │   ├── __init__.py
 │   │   ├── calendar_tools.py  # Calendar-related tools
 │   │   ├── maps_tools.py      # Maps and location tools
-│   │   └── preferences_tools.py # User preference tools
+│   │   ├── preferences_tools.py # User preference tools
+│   │   └── tool_manager.py    # Tool execution and management
 │   └── tests/                 # Backend tests
 │       ├── unit/              # Unit tests
 │       └── integration/       # Integration tests
@@ -220,7 +222,29 @@ npm start
 
 ## 🧪 Testing
 
-### Backend Tests
+### Test Categories
+
+The project includes several types of tests:
+
+- **Unit Tests** (`backend/tests/unit/`) - Test individual components in isolation
+- **Integration Tests** (`backend/tests/integration/`) - Test component interactions
+- **End-to-End Tests** (`tests/`) - Test full application workflows
+
+### Running Tests
+
+#### All Tests
+```bash
+# Run all tests from project root
+pytest
+
+# Run with verbose output
+pytest -v
+
+# Run with coverage
+pytest --cov=backend --cov-report=html
+```
+
+#### Backend Tests Only
 ```bash
 # Run all backend tests
 cd backend
@@ -234,17 +258,50 @@ pytest tests/integration/    # Integration tests
 pytest --cov=backend tests/
 ```
 
+#### End-to-End Tests
+```bash
+# Run all end-to-end tests
+pytest tests/ -m e2e
+
+# Run only fast end-to-end tests (exclude slow ones)
+pytest tests/ -m e2e -m "not slow"
+
+# Run specific end-to-end test
+pytest tests/test_full_flow.py::test_basic_e2e
+```
+
+#### Test Markers
+```bash
+# Run tests by category
+pytest -m unit              # Unit tests only
+pytest -m integration       # Integration tests only
+pytest -m e2e               # End-to-end tests only
+pytest -m slow              # Slow running tests
+pytest -m google            # Tests requiring Google APIs
+
+# Combine markers
+pytest -m "e2e and not slow"  # Fast end-to-end tests only
+```
+
+### End-to-End Test Details
+
+The end-to-end tests (`tests/`) verify complete application workflows:
+
+- **`test_full_flow.py`** - Basic startup verification
+- **`test_conversation_flow.py`** - Conversation and greeting flows
+- **`test_advanced_flow.py`** - Complex workflows (calendar, sheets, etc.)
+
+**Requirements for E2E Tests:**
+- Chrome browser installed
+- Google API credentials configured
+- OpenAI API key set
+- Ports 8000 and 3000 available
+
 ### Frontend Tests
 ```bash
 cd frontend
 npm test                    # Run tests
 npm run test:ui            # Run tests with UI
-```
-
-### End-to-End Tests
-```bash
-# Run end-to-end tests from project root
-pytest tests/
 ```
 
 ## 📚 API Documentation

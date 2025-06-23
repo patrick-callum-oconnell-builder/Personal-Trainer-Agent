@@ -6,6 +6,7 @@ import os
 import signal
 import sys
 
+@pytest.mark.e2e
 def test_basic_e2e():
     """Basic end-to-end test that verifies both frontend and backend start properly."""
     # Start the application using run.py
