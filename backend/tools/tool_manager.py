@@ -39,6 +39,7 @@ from . import (
 from backend.time_formatting import extract_timeframe_from_text
 from .maps_tools import FindNearbyWorkoutLocationsInput
 from backend.google_services.base import GoogleServiceBase
+from backend.prompts import get_calendar_nlp_prompt, get_tool_result_summary_prompt
 
 logger = logging.getLogger(__name__)
 
@@ -404,50 +405,14 @@ class ToolManager:
         """Convert natural language input to JSON format for calendar events using LLM."""
         pacific_tz = pytz.timezone('America/Los_Angeles')
         now = datetime.now(pacific_tz)
-        
-        def build_prompt(input_text: str) -> str:
-            return f"""Convert this natural language event description into a Google Calendar event JSON.
-Current time: {now.strftime('%Y-%m-%d %H:%M')} Pacific Time
-
-Input: "{input_text}"
-
-Respond ONLY with a valid JSON object, no text or explanation, and never repeat the input. The JSON must have these fields:
-- summary: Event title
-- start: Object with dateTime (ISO format with -07:00 timezone) and timeZone ("America/Los_Angeles")
-- end: Object with dateTime (ISO format with -07:00 timezone) and timeZone ("America/Los_Angeles")
-- description: Brief description (optional)
-- location: Event location (optional)
-
-Rules:
-1. If no time is specified, use 6:00 PM tomorrow
-2. If no duration is specified, make it 1 hour
-3. Always use Pacific Time (-07:00)
-4. For "tomorrow", use tomorrow's date
-5. For "today", use today's date
-6. For times like "9 AM", convert to 24-hour format (09:00)
-
-Example:
-{{
-    "summary": "Workout Session",
-    "start": {{
-        "dateTime": "2024-03-20T18:00:00-07:00",
-        "timeZone": "America/Los_Angeles"
-    }},
-    "end": {{
-        "dateTime": "2024-03-20T19:00:00-07:00",
-        "timeZone": "America/Los_Angeles"
-    }},
-    "description": "General fitness workout",
-    "location": "Gym"
-}}
-"""
+        current_time = now.strftime('%Y-%m-%d %H:%M')
         
         last_json_string = None
         for attempt in range(2):  # Try twice
             try:
                 messages = [
                     SystemMessage(content="You are a helpful assistant that converts natural language to Google Calendar event JSON. Always return valid JSON only. Never use hardcoded dates - always use relative dates based on the current date."),
-                    HumanMessage(content=build_prompt(natural_language_input))
+                    HumanMessage(content=get_calendar_nlp_prompt(natural_language_input, current_time))
                 ]
                 response = await self.llm.ainvoke(messages)
                 json_string = response.content.strip()
@@ -508,41 +473,7 @@ Example:
                     return "I've cleared your calendar for the specified time period."
 
             # Create a detailed prompt for the LLM to summarize the tool result
-            prompt = f"""You are a helpful personal trainer AI assistant. Summarize the result of the {tool_name} tool in a user-friendly way.
-
-Tool result: {json.dumps(tool_result, default=str)}
-
-Guidelines:
-1. Be concise but informative
-2. Use natural, conversational language
-3. Format any dates, times, or numbers in a readable way
-4. If there are any errors or issues, explain them clearly
-5. If the result is a list or complex data, summarize the key points
-6. Use markdown formatting for better readability
-7. For calendar events, ALWAYS include:
-   - Event title
-   - Date and time in a readable format
-   - A clickable link to the event using markdown [Event Link](url)
-   - Any other relevant details
-8. For workout locations, include:
-   - Name of the location
-   - Address
-   - Distance if available
-9. For tasks, include:
-   - Task name
-   - Due date
-   - Priority if available
-10. For emails, include:
-    - Recipient
-    - Subject
-    - Status of the send operation
-
-Example responses:
-- For calendar events: "I've scheduled your Upper Body Workout for tomorrow at 10 AM at the Downtown Gym. You can view all the details here: [Event Link](https://calendar.google.com/event/...)"
-- For workout locations: "I found a great gym nearby: Fitness First at 123 Main St, just 0.5 miles away. They have all the equipment you need for your workout routine."
-- For tasks: "I've added 'Track daily protein intake' to your task list, due this Friday. I'll remind you about it as the deadline approaches."
-
-Please provide a natural, detailed response:"""
+            prompt = get_tool_result_summary_prompt(tool_name, json.dumps(tool_result, default=str))
 
             messages = [
                 SystemMessage(content="You are a helpful personal trainer AI assistant. Always respond in clear, natural language, never as a code block or raw data. Be encouraging and focused on helping the user achieve their fitness goals."),
