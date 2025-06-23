@@ -29,11 +29,6 @@ from backend.tool_manager import ToolManager
 load_dotenv()
 logger = logging.getLogger(__name__)
 
-class FindNearbyWorkoutLocationsInput(BaseModel):
-    lat: float = Field(..., description="Latitude of the location")
-    lng: float = Field(..., description="Longitude of the location")
-    radius: int = Field(5000, description="Search radius in meters (default 5000)")
-
 class PersonalTrainerAgent:
     """
     An AI-powered personal trainer agent that integrates with various Google services

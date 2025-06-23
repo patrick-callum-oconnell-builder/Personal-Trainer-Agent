@@ -33,15 +33,9 @@ from backend.tools import (
     add_preference_to_kg,
 )
 from backend.time_formatting import extract_timeframe_from_text
+from backend.tools.maps_tools import FindNearbyWorkoutLocationsInput
 
 logger = logging.getLogger(__name__)
-
-
-class FindNearbyWorkoutLocationsInput(BaseModel):
-    """Input model for finding nearby workout locations."""
-    lat: float = Field(..., description="Latitude of the location")
-    lng: float = Field(..., description="Longitude of the location")
-    radius: int = Field(5000, description="Search radius in meters (default 5000)")
 
 
 class ToolManager:
