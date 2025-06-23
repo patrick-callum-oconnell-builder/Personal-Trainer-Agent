@@ -1,9 +1,11 @@
 import os
 import sys
 import pytest
+import pytest_asyncio
 from dotenv import load_dotenv
-from backend.google_services.maps import GoogleMapsService
+from backend.google_services import GoogleMapsService
 from backend.agent import PersonalTrainerAgent
+from unittest.mock import AsyncMock, MagicMock
 
 # Add the backend directory to the Python path
 backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))

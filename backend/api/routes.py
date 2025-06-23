@@ -1,15 +1,17 @@
 import logging
-from fastapi import APIRouter, HTTPException, Request, BackgroundTasks, Header
+from fastapi import APIRouter, HTTPException, Request, BackgroundTasks, Header, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, StreamingResponse
 from backend.agent import PersonalTrainerAgent
-from backend.google_services.calendar import GoogleCalendarService
-from backend.google_services.gmail import GoogleGmailService
-from backend.google_services.maps import GoogleMapsService
-from backend.google_services.fit import GoogleFitnessService
-from backend.google_services.tasks import GoogleTasksService
-from backend.google_services.drive import GoogleDriveService
-from backend.google_services.sheets import GoogleSheetsService
+from backend.google_services import (
+    GoogleCalendarService,
+    GoogleDriveService,
+    GoogleFitnessService,
+    GoogleGmailService,
+    GoogleMapsService,
+    GoogleSheetsService,
+    GoogleTasksService,
+)
 import os
 from pydantic import BaseModel
 from typing import List, Dict, Any, Optional

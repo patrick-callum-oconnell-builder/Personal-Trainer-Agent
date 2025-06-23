@@ -4,13 +4,14 @@ from datetime import datetime, timedelta
 import json
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from backend.agent import PersonalTrainerAgent
-from backend.google_services.calendar import GoogleCalendarService
-from backend.google_services.gmail import GoogleGmailService
-from backend.google_services.tasks import GoogleTasksService
-from backend.google_services.drive import GoogleDriveService
-from backend.google_services.sheets import GoogleSheetsService
-from backend.google_services.maps import GoogleMapsService
-import os
+from backend.google_services import (
+    GoogleCalendarService,
+    GoogleDriveService,
+    GoogleGmailService,
+    GoogleMapsService,
+    GoogleSheetsService,
+    GoogleTasksService,
+)
 from dotenv import load_dotenv
 import pytest_asyncio
 

@@ -1,6 +1,6 @@
 import pytest
 from backend.agent import PersonalTrainerAgent
-from backend.google_services.calendar import GoogleCalendarService
+from backend.google_services import GoogleCalendarService
 from unittest.mock import AsyncMock
 from datetime import datetime, timedelta, timezone
 import json

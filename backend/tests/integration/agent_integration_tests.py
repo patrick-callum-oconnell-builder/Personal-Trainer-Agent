@@ -4,21 +4,26 @@ import sys
 from dotenv import load_dotenv
 import pytest
 import asyncio
-from datetime import datetime
+from datetime import datetime, timedelta
 import httpx
-from langchain_core.messages import HumanMessage
+from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+import json
+from typing import Dict, Any, List
+from unittest.mock import AsyncMock, MagicMock, patch
 
 # Add the backend directory to the Python path
 backend_dir = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 sys.path.append(backend_dir)
 
-from agent import PersonalTrainerAgent
-from backend.google_services.calendar import GoogleCalendarService
-from backend.google_services.gmail import GoogleGmailService
-from backend.google_services.tasks import GoogleTasksService
-from backend.google_services.drive import GoogleDriveService
-from backend.google_services.sheets import GoogleSheetsService
-from backend.google_services.maps import GoogleMapsService
+from backend.agent import PersonalTrainerAgent
+from backend.google_services import (
+    GoogleCalendarService,
+    GoogleDriveService,
+    GoogleGmailService,
+    GoogleMapsService,
+    GoogleSheetsService,
+    GoogleTasksService,
+)
 
 class TestAgentIntegration(unittest.TestCase):
     async def asyncSetUp(self):
