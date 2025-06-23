@@ -80,12 +80,12 @@ class TestPersonalTrainerAgent(unittest.IsolatedAsyncioTestCase):
         self.assertIsNotNone(self.agent.tasks_service)
         self.assertIsNotNone(self.agent.drive_service)
         self.assertIsNotNone(self.agent.sheets_service)
-        self.assertIsNotNone(self.agent.tools)
+        self.assertIsNotNone(self.agent.tool_manager.get_tools())
         # Note: agent attribute is only set after async_init() is called
 
     def test_tool_creation(self):
         """Test that all tools are created correctly."""
-        tools = self.agent.tools
+        tools = self.agent.tool_manager.get_tools()
         tool_names = [tool.name for tool in tools]
         
         # Check for the actual tools we're using
@@ -170,13 +170,25 @@ class TestPersonalTrainerAgent(unittest.IsolatedAsyncioTestCase):
     @patch('backend.agent.ChatOpenAI')
     async def test_process_messages(self, mock_chat):
         """Test message processing functionality."""
-        mock_chat.return_value.invoke.return_value = "I'll help you start working out"
+        # Create a proper mock for the LLM
+        mock_llm = AsyncMock()
+        mock_llm.ainvoke.return_value.content = "I'll help you start working out"
+        mock_chat.return_value = mock_llm
+        
+        # Re-initialize the agent with the mocked LLM
+        self.agent.llm = mock_llm
+        
         messages = [
             {"role": "user", "content": "I want to start working out"}
         ]
         result = await self.agent.process_messages(messages)
+        
+        # Verify the mock was called
+        mock_llm.ainvoke.assert_called_once()
+        
         self.assertIsInstance(result, str)
         self.assertGreater(len(result), 0)
+        self.assertIn("I'll help you start working out", result)
 
 if __name__ == '__main__':
     unittest.main() 

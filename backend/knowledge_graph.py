@@ -73,7 +73,7 @@ class KnowledgeGraph:
     
     KG_FILE = os.path.join(os.path.dirname(__file__), 'kg.txt')
     
-    def __init__(self):
+    def __init__(self, kg_path: Optional[str] = KG_FILE):
         self.graph = nx.DiGraph()
         self.entity_map: Dict[str, Entity] = {}
         self.relation_map: Dict[Tuple[str, str, str], Relation] = {}
@@ -82,16 +82,20 @@ class KnowledgeGraph:
         self.root_person: Optional[str] = None
         self.patterns = self.ENTITY_PATTERNS.copy()
         self.relationship_indicators = self.RELATIONSHIP_INDICATORS.copy()
-        if os.path.exists(self.KG_FILE):
+        self.kg_path = kg_path
+        
+        if self.kg_path and os.path.exists(self.kg_path):
             self.load_from_file()
-            logger.info(f"KnowledgeGraph loaded from file: {self.KG_FILE}")
-        else:
+            logger.info(f"KnowledgeGraph loaded from file: {self.kg_path}")
+        elif self.kg_path:
             self.parse_prompt(KNOWLEDGE_GRAPH_PROMPT)
             self.save_to_file()
             logger.info("KnowledgeGraph initialized from prompt and saved to file.")
         
     def save_to_file(self):
         """Persist the KG to a file as JSON."""
+        if not self.kg_path:
+            return # Do not save if no path is provided
         data = {
             'entities': {k: {'type': v.type, 'attributes': v.attributes} for k, v in self.entity_map.items()},
             'relations': [
@@ -100,13 +104,15 @@ class KnowledgeGraph:
             ],
             'root_person': self.root_person
         }
-        with open(self.KG_FILE, 'w') as f:
+        with open(self.kg_path, 'w') as f:
             json.dump(data, f)
-        logger.info(f"KnowledgeGraph saved to file: {self.KG_FILE}")
+        logger.info(f"KnowledgeGraph saved to file: {self.kg_path}")
 
     def load_from_file(self):
         """Load the KG from a file."""
-        with open(self.KG_FILE, 'r') as f:
+        if not self.kg_path or not os.path.exists(self.kg_path):
+            return
+        with open(self.kg_path, 'r') as f:
             data = json.load(f)
         self.entity_map = {k: Entity(id=k, type=v['type'], attributes=v['attributes']) for k, v in data['entities'].items()}
         self.relation_map = {}
@@ -257,7 +263,6 @@ class KnowledgeGraph:
             self.entity_map[entity_id] = entity
             self.graph.add_node(entity_id, **{"type": entity_type, **attributes})
             self.entity_types.add(entity_type)
-            self.save_to_file()  # Save after adding entity
             
     def _add_relation(self, source: str, target: str, relation_type: str, attributes: Dict[str, any] = None) -> None:
         """Add a relation to the knowledge graph."""
@@ -269,7 +274,6 @@ class KnowledgeGraph:
             self.relation_map[key] = relation
             self.graph.add_edge(source, target, **{"type": relation_type, **attributes})
             self.relation_types.add(relation_type)
-            self.save_to_file()  # Save after adding relation
             
     def get_entity(self, entity_id: str) -> Optional[Entity]:
         """Get an entity by its ID."""

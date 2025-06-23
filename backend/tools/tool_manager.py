@@ -14,6 +14,7 @@ import logging
 import asyncio
 import os
 import pytz
+import dateparser
 from datetime import datetime, timedelta, timezone as dt_timezone
 from typing import List, Dict, Any, Optional, Union
 from pydantic.v1 import BaseModel, Field
@@ -452,9 +453,16 @@ Example:
                 json_string = response.content.strip()
                 json_string = json_string.replace('```json', '').replace('```', '').strip()
                 last_json_string = json_string
+                
+                # Validate that it's valid JSON
                 event_data = json.loads(json_string)
                 
-                # Ensure start and end are properly formatted
+                # If the JSON is already properly formatted with start/end objects, return it as-is
+                if isinstance(event_data.get('start'), dict) and isinstance(event_data.get('end'), dict):
+                    if 'dateTime' in event_data['start'] and 'dateTime' in event_data['end']:
+                        return json.dumps(event_data)
+                
+                # Only try to parse with dateparser if the format is not already correct
                 for time_field in ['start', 'end']:
                     if time_field in event_data:
                         if isinstance(event_data[time_field], str):

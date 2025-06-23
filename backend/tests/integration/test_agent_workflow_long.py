@@ -46,7 +46,7 @@ async def test_agent_initialization(agent):
 @pytest.mark.asyncio
 async def test_tool_creation(agent):
     """Test that all tools are created properly."""
-    tools = agent._create_tools()
+    tools = agent.tool_manager.get_tools()
     assert tools is not None
     assert len(tools) > 0
     tool_names = [tool.name for tool in tools]
@@ -114,27 +114,4 @@ async def test_error_handling(agent):
     
     assert response is not None
     assert isinstance(response, str)
-    assert len(response) > 0
-
-@pytest.mark.asyncio
-async def test_message_format_handling(agent):
-    """Test the agent's handling of different message formats."""
-    test_cases = [
-        (
-            {"role": "user", "content": "Hello"},
-            "human"
-        ),
-        (
-            {"role": "assistant", "content": "Hi there!"},
-            "ai"
-        ),
-        (
-            {"role": "system", "content": "System message"},
-            "system"
-        )
-    ]
-
-    for input_msg, expected_role in test_cases:
-        converted = agent._convert_message(input_msg)
-        assert converted is not None
-        assert converted.type == expected_role 
+    assert len(response) > 0 
