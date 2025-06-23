@@ -3,7 +3,7 @@ import os
 from unittest.mock import patch, MagicMock
 from fastapi.testclient import TestClient
 from backend.main import app
-from backend.auth import get_credentials, authenticate_all_services, check_authentication_status
+from backend.utilities.auth import get_credentials, authenticate_all_services, check_authentication_status
 from dotenv import load_dotenv
 
 load_dotenv()
@@ -66,7 +66,7 @@ class TestAuthIntegration:
             assert value is not None
             assert len(value) > 0
     
-    @patch('backend.auth.InstalledAppFlow')
+    @patch('backend.utilities.auth.InstalledAppFlow')
     def test_oauth_flow_initialization(self, mock_flow):
         """Test OAuth flow initialization."""
         mock_flow_instance = MagicMock()
@@ -76,8 +76,8 @@ class TestAuthIntegration:
         # Test that the flow can be initialized (we won't actually run it)
         assert mock_flow.from_client_config is not None
     
-    @patch('backend.auth.os.path.exists')
-    @patch('backend.auth.pickle.load')
+    @patch('backend.utilities.auth.os.path.exists')
+    @patch('backend.utilities.auth.pickle.load')
     def test_credentials_loading(self, mock_pickle_load, mock_exists):
         """Test credentials loading from pickle files."""
         mock_exists.return_value = True
@@ -91,7 +91,7 @@ class TestAuthIntegration:
     
     def test_scopes_definition(self):
         """Test that OAuth scopes are properly defined."""
-        from backend.auth import SCOPES
+        from backend.utilities.auth import SCOPES
         
         expected_services = ['calendar', 'gmail', 'fitness', 'tasks', 'drive', 'sheets']
         
@@ -146,10 +146,10 @@ class TestAuthIntegration:
         # Test with invalid service name
         with pytest.raises(KeyError):
             # This should raise a KeyError for invalid service
-            from backend.auth import SCOPES
+            from backend.utilities.auth import SCOPES
             _ = SCOPES['invalid_service']
     
-    @patch('backend.auth.get_credentials')
+    @patch('backend.utilities.auth.get_credentials')
     def test_authenticate_all_services_error_handling(self, mock_get_creds):
         """Test error handling in authenticate_all_services."""
         # Mock get_credentials to raise an exception

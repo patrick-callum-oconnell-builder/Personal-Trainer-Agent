@@ -36,7 +36,7 @@ from . import (
     get_calendar_events,
     add_preference_to_kg,
 )
-from backend.time_formatting import extract_timeframe_from_text
+from backend.utilities.time_formatting import extract_timeframe_from_text
 from .maps_tools import FindNearbyWorkoutLocationsInput
 from backend.google_services.base import GoogleServiceBase
 from backend.prompts import get_calendar_nlp_prompt, get_tool_result_summary_prompt

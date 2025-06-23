@@ -18,7 +18,7 @@ from backend.google_services import (
     GoogleSheetsService,
     GoogleTasksService,
 )
-from backend.time_formatting import extract_timeframe_from_text
+from backend.utilities.time_formatting import extract_timeframe_from_text
 from backend.tools.tool_manager import ToolManager
 
 load_dotenv()

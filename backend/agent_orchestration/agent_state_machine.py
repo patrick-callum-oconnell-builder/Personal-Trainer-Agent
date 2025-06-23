@@ -12,7 +12,7 @@ from datetime import datetime, timezone as dt_timezone
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, BaseMessage
 from langchain_core.tools import Tool
 from backend.prompts import get_system_prompt
-from backend.time_formatting import extract_timeframe_from_text
+from backend.utilities.time_formatting import extract_timeframe_from_text
 
 logger = logging.getLogger(__name__)
 
