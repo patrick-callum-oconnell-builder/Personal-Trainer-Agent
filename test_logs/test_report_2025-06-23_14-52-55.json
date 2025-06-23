@@ -1,0 +1,199 @@
+{
+  "timestamp": "2025-06-23T14:52:55.018379",
+  "summary": {
+    "total_tests": 43,
+    "passed_tests": 42,
+    "failed_tests": 1,
+    "error_tests": 0,
+    "success_rate_percentage": 97.67,
+    "coverage_percentage": 32
+  },
+  "failed_tests": [
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_state_machine_with_conversation_history",
+      "status": "failed",
+      "error": "AssertionError: assert [] == ['Can you help me?']\n  \n  Right contains one more item: 'Can you help me?'\n  \n  Full diff:\n  + []\n  - [\n  -     'Can you help me?',\n  - ]",
+      "error_type": null,
+      "runtime": 0.014,
+      "traceback": "backend/tests/unit/test_agent_state_machine.py:408: in test_state_machine_with_conversation_history\n    assert call_args == [messages[-1].content]\nE   AssertionError: assert [] == ['Can you help me?']\nE     \nE     Right contains one more item: 'Can you help me?'\nE     \nE     Full diff:\nE     + []\nE     - [\nE     -     'Can you help me?',\nE     - ]",
+      "stdout": null,
+      "stderr": null
+    }
+  ],
+  "test_runtimes": [
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_process_messages",
+      "runtime": 0.479
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_gmail_tools",
+      "runtime": 0.47
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_calendar_tools",
+      "runtime": 0.469
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_tasks_tools",
+      "runtime": 0.467
+    },
+    {
+      "test_name": "::backend.tests.unit.test_services.TestGoogleServices::test_tasks_service",
+      "runtime": 0.113
+    },
+    {
+      "test_name": "::backend.tests.unit.test_services.TestGoogleServices::test_fit_service",
+      "runtime": 0.108
+    },
+    {
+      "test_name": "::backend.tests.unit.test_services.TestGoogleServices::test_maps_service",
+      "runtime": 0.098
+    },
+    {
+      "test_name": "::backend.tests.unit.test_services.TestGoogleServices::test_drive_service",
+      "runtime": 0.077
+    },
+    {
+      "test_name": "::backend.tests.unit.test_services.TestGoogleServices::test_calendar_service",
+      "runtime": 0.061
+    },
+    {
+      "test_name": "::backend.tests.unit.test_services.TestGoogleServices::test_sheets_service",
+      "runtime": 0.049
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_drive_tools",
+      "runtime": 0.029
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_tool_creation",
+      "runtime": 0.028
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_sheets_tools",
+      "runtime": 0.027
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_initialization",
+      "runtime": 0.026
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_process_messages_stream_message_response",
+      "runtime": 0.016
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_state_machine_complete_workflow",
+      "runtime": 0.015
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_process_messages_stream_tool_call_empty_summary",
+      "runtime": 0.014
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_process_messages_stream_exception_handling",
+      "runtime": 0.014
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_state_machine_with_conversation_history",
+      "runtime": 0.014
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_process_messages_stream_tool_call_flow",
+      "runtime": 0.012
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_decide_next_action_preference_detected",
+      "runtime": 0.011
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_decide_next_action_message_response",
+      "runtime": 0.011
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_decide_next_action_tool_prefix_detected",
+      "runtime": 0.011
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_decide_next_action_tool_call_with_timeframe",
+      "runtime": 0.011
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_decide_next_action_empty_llm_response",
+      "runtime": 0.011
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_process_messages_stream_no_user_message",
+      "runtime": 0.011
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_convert_message_langchain_message",
+      "runtime": 0.01
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_process_messages_stream_empty_messages",
+      "runtime": 0.01
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_decide_next_action_history_list_format",
+      "runtime": 0.01
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_init",
+      "runtime": 0.009
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_convert_message_dict_assistant",
+      "runtime": 0.009
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_convert_message_dict_other",
+      "runtime": 0.009
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_convert_message_string",
+      "runtime": 0.008
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_decide_next_action_tool_call_detected",
+      "runtime": 0.008
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_convert_message_dict_user",
+      "runtime": 0.007
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_decide_next_action_exception_handling",
+      "runtime": 0.007
+    },
+    {
+      "test_name": "backend/tests/unit/test_knowledge_graph.py::backend.tests.unit.test_knowledge_graph::test_persistence",
+      "runtime": 0.005
+    },
+    {
+      "test_name": "backend/tests/unit/test_knowledge_graph.py::backend.tests.unit.test_knowledge_graph::test_entity_creation",
+      "runtime": 0.002
+    },
+    {
+      "test_name": "backend/tests/unit/test_knowledge_graph.py::backend.tests.unit.test_knowledge_graph::test_relationship_indicators",
+      "runtime": 0.002
+    },
+    {
+      "test_name": "backend/tests/unit/test_knowledge_graph.py::backend.tests.unit.test_knowledge_graph::test_relation_creation",
+      "runtime": 0.001
+    },
+    {
+      "test_name": "backend/tests/unit/test_knowledge_graph.py::backend.tests.unit.test_knowledge_graph::test_query_method",
+      "runtime": 0.001
+    },
+    {
+      "test_name": "backend/tests/unit/test_knowledge_graph.py::backend.tests.unit.test_knowledge_graph::test_pattern_matching",
+      "runtime": 0.001
+    },
+    {
+      "test_name": "backend/tests/unit/test_knowledge_graph.py::backend.tests.unit.test_knowledge_graph::test_prompt_parsing",
+      "runtime": 0.001
+    }
+  ],
+  "total_runtime": 2.751999999999998,
+  "average_runtime": 0.06399999999999996
+}

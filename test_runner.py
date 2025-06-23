@@ -234,12 +234,10 @@ class TestRunner:
         return result
     
     def run_integration_tests(self, exclude_long=False) -> Dict[str, Any]:
-        """Run integration tests with proper markers."""
-        print("🔍 Running integration tests...")
-        
-        # Determine the path to run based on exclude_long flag
+        """Run integration tests in parallel by default, serially only when long tests are included."""
         if exclude_long:
-            # Run integration tests but exclude the long subdirectory
+            print("🔍 Running integration tests in parallel (excluding long tests)...")
+            # Run integration tests in parallel, excluding the long subdirectory
             cmd = [
                 sys.executable, '-m', 'pytest', 
                 'backend/tests/integration/', 
@@ -251,8 +249,10 @@ class TestRunner:
                 '--cov=backend',
                 '--cov-report=term'
             ]
+            self._execute_test_run(cmd, parallel=True)
         else:
-            # Run all integration tests including long ones
+            print("🔍 Running ALL integration tests serially (including long tests)...")
+            # Run all integration tests including long ones serially to avoid rate limiting
             cmd = [
                 sys.executable, '-m', 'pytest', 
                 'backend/tests/integration/', 
@@ -263,16 +263,27 @@ class TestRunner:
                 '--cov=backend',
                 '--cov-report=term'
             ]
+            self._execute_test_run(cmd, parallel=False)
         
-        self._execute_test_run(cmd)
         return self.generate_report()
 
-    def _execute_test_run(self, cmd: List[str]):
-        """A helper function to execute a pytest command and parse results."""
+    def _execute_test_run(self, cmd: List[str], parallel: bool = False):
+        """A helper function to execute a pytest command and parse results.
+        
+        Args:
+            cmd: The pytest command to execute
+            parallel: Whether to run tests in parallel (default: False for serial execution)
+        """
         # Create a unique path for the JUnit XML report
         timestamp = datetime.now().strftime('%Y%m%d%H%M%S%f')
         junit_xml_path = self.test_logs_dir / f"temp_junit_report_{timestamp}.xml"
         cmd.append(f"--junit-xml={junit_xml_path}")
+
+        # Add parallelization options if requested
+        if parallel:
+            # Use pytest-xdist for parallel execution
+            cmd.extend(['-n', 'auto'])  # Auto-detect number of workers
+        # For serial execution, no additional options needed (pytest runs serially by default)
 
         try:
             # Use Popen to allow for real-time streaming and capturing
@@ -293,7 +304,9 @@ class TestRunner:
                     stdout_lines.append(line)
                 process.stdout.close()
             
-            process.wait(timeout=900) # Wait for the process to complete with a 15 min timeout
+            # Increase timeout for serial execution (integration tests)
+            timeout = 1800 if not parallel else 900  # 30 min for serial, 15 min for parallel
+            process.wait(timeout=timeout)
             
             full_output = "".join(stdout_lines)
 
@@ -409,20 +422,52 @@ class TestRunner:
             print(f"An unexpected error occurred during XML parsing: {e}")
 
     def run_all_tests(self) -> Dict[str, Any]:
-        """Run all tests in the project, excluding long-running ones."""
-        cmd = [
-            sys.executable, '-m', 'pytest',
-            'backend/tests/',
-            '--ignore-glob', '*_long.py',
-            '-v', '--tb=short', '--no-header',
-            '--disable-warnings', '--cov=backend', '--cov-report=term'
-        ]
-        self._execute_test_run(cmd)
+        """Run all tests in the project, excluding long-running ones.
+        Unit tests and integration tests run in parallel by default."""
+        print("🎯 Running ALL tests (unit tests and integration tests in parallel)...")
+        
+        # Store original test results
+        original_results = self.test_results.copy()
+        original_coverage = self.coverage
+        
+        # Run unit tests in parallel
+        print("\n--- Running Unit Tests in Parallel ---")
+        unit_report = self.run_unit_tests()
+        
+        # Store unit test results
+        unit_results = self.test_results.copy()
+        unit_coverage = self.coverage
+        
+        # Reset for integration tests
+        self.test_results.clear()
+        self.coverage = -1
+        
+        # Run integration tests in parallel (excluding long)
+        print("\n--- Running Integration Tests in Parallel ---")
+        integration_report = self.run_integration_tests(exclude_long=True)
+        
+        # Combine results
+        self.test_results = {**unit_results, **self.test_results}
+        
+        # Combine coverage (weighted average based on test counts)
+        if unit_coverage >= 0 and self.coverage >= 0:
+            unit_count = len(unit_results)
+            integration_count = len(self.test_results) - unit_count
+            total_count = unit_count + integration_count
+            
+            if total_count > 0:
+                self.coverage = int((unit_coverage * unit_count + self.coverage * integration_count) / total_count)
+            else:
+                self.coverage = unit_coverage
+        elif unit_coverage >= 0:
+            self.coverage = unit_coverage
+        # If both are -1, keep self.coverage as -1
+        
         return self.generate_report()
 
     def run_long_tests(self) -> Dict[str, Any]:
-        """Run only the long-running tests."""
-        print("🚀 Running LONG tests...")
+        """Run only the long-running tests serially."""
+        print("🚀 Running LONG tests serially...")
         
         long_test_files = [str(p) for p in self.project_root.glob('backend/tests/integration/*_long.py')]
         
@@ -437,19 +482,19 @@ class TestRunner:
             '--disable-warnings', '--cov=backend', '--cov-report=term'
         ]
         
-        self._execute_test_run(cmd)
+        self._execute_test_run(cmd, parallel=False)
         return self.generate_report()
 
     def run_unit_tests(self) -> Dict[str, Any]:
-        """Run only the unit tests."""
-        print("🚀 Running UNIT tests...")
+        """Run only the unit tests in parallel for faster execution."""
+        print("🚀 Running UNIT tests in parallel...")
         cmd = [
             sys.executable, '-m', 'pytest',
             'backend/tests/unit/',
             '-v', '--tb=short', '--no-header',
             '--cov=backend', '--cov-report=term'
         ]
-        self._execute_test_run(cmd)
+        self._execute_test_run(cmd, parallel=True)
         return self.generate_report()
     
     def generate_report(self) -> Dict[str, Any]:

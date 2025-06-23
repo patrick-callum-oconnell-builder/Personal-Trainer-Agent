@@ -164,13 +164,17 @@ class AgentStateMachine:
             system_prompt = get_system_prompt(self.tools, current_time, current_date)
 
             # Create the prompt with the full conversation history
-            prompt = f"{system_prompt}\n\nConversation history:\n"
+            user_prompt = f"Conversation history:\n"
             for msg in chat_history:
-                prompt += f"{msg}\n"
-            prompt += f"\nUser's latest message: {input_text}\n\nWhat should I do next?"
+                user_prompt += f"{msg}\n"
+            user_prompt += f"\nUser's latest message: {input_text}\n\nWhat should I do next?"
 
-            # Get the LLM's response
-            response = await self.llm.ainvoke(prompt)
+            # Get the LLM's response using proper message objects
+            messages = [
+                SystemMessage(content=system_prompt),
+                HumanMessage(content=user_prompt)
+            ]
+            response = await self.llm.ainvoke(messages)
             
             # Handle both string and AIMessage responses
             if isinstance(response, str):
@@ -226,7 +230,9 @@ class AgentStateMachine:
             raise
 
     def _convert_message(self, msg):
-        """Convert a message to the format expected by the agent."""
+        from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
+        if isinstance(msg, BaseMessage):
+            return msg
         if isinstance(msg, dict):
             if msg.get('role') == 'user':
                 return HumanMessage(content=msg.get('content', ''))

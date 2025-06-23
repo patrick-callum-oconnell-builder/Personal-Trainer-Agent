@@ -108,34 +108,50 @@ async def health_check():
 
 @router.post("/chat")
 async def chat(request: ChatRequest, background_tasks: BackgroundTasks, x_api_key: Optional[str] = Header(None)):
+    logger.info(f"Chat endpoint called with {len(request.messages)} messages")
+    
+    # Validate request structure first
+    if not request.messages:
+        logger.error("No messages provided in request")
+        raise HTTPException(status_code=400, detail="No messages provided")
+    
+    # Convert Pydantic Message objects to dicts and validate
+    raw_messages = [msg.dict() if hasattr(msg, 'dict') else msg for msg in request.messages]
+    logger.debug(f"Raw incoming messages: {raw_messages}")
+    
+    # Normalize and validate messages
+    normalized_messages = []
+    for i, msg in enumerate(raw_messages):
+        if not isinstance(msg, dict):
+            logger.error(f"Message {i} is not a dict: {msg}")
+            raise HTTPException(status_code=400, detail=f"Message {i} is not a valid message object")
+        
+        if 'role' not in msg or 'content' not in msg:
+            logger.error(f"Message {i} missing required fields: {msg}")
+            raise HTTPException(status_code=400, detail=f"Message {i} missing required fields: role and content")
+        
+        role = msg['role']
+        content = msg['content']
+        
+        if role not in {"user", "assistant", "system"}:
+            logger.error(f"Message {i} has invalid role: {role}")
+            raise HTTPException(status_code=400, detail=f"Message {i} has invalid role: {role}. Must be 'user', 'assistant', or 'system'")
+        
+        if not content or not content.strip():
+            logger.error(f"Message {i} has empty content")
+            raise HTTPException(status_code=400, detail=f"Message {i} has empty content")
+        
+        normalized = {"role": role, "content": content.strip()}
+        logger.debug(f"Successfully normalized message {i}: {msg} -> {normalized}")
+        normalized_messages.append(normalized)
+    
+    logger.debug(f"Normalized messages to be processed: {normalized_messages}")
+
+    if not normalized_messages:
+        logger.error("No valid messages after normalization")
+        raise HTTPException(status_code=400, detail="No valid messages to process")
+
     try:
-        logger.info(f"Chat endpoint called with {len(request.messages)} messages")
-        # Convert Pydantic Message objects to dicts
-        raw_messages = [msg.dict() if hasattr(msg, 'dict') else msg for msg in request.messages]
-        logger.debug(f"Raw incoming messages: {raw_messages}")
-        # Normalize messages
-        normalized_messages = []
-        for i, msg in enumerate(raw_messages):
-            if not isinstance(msg, dict):
-                logger.error(f"Message {i} is not a dict: {msg}")
-                continue
-            if 'role' not in msg or 'content' not in msg:
-                logger.error(f"Message {i} missing required fields: {msg}")
-                continue
-            role = msg['role']
-            content = msg['content']
-            if role not in {"user", "assistant", "system"}:
-                logger.error(f"Message {i} has invalid role: {role}")
-                continue
-            normalized = {"role": role, "content": content.strip()}
-            logger.debug(f"Successfully normalized message {i}: {msg} -> {normalized}")
-            normalized_messages.append(normalized)
-        logger.debug(f"Normalized messages to be processed: {normalized_messages}")
-
-        if not normalized_messages:
-            logger.error("No valid messages after normalization")
-            raise HTTPException(status_code=400, detail="No valid messages to process")
-
         # Get the agent and process messages
         agent = await get_agent()
         responses = []
@@ -233,34 +249,50 @@ async def shutdown(request: Request):
 
 @router.post("/chat/stream")
 async def chat_stream(request: ChatRequest, background_tasks: BackgroundTasks, x_api_key: Optional[str] = Header(None)):
+    logger.info(f"Streaming chat endpoint called with {len(request.messages)} messages")
+    
+    # Validate request structure first
+    if not request.messages:
+        logger.error("No messages provided in request")
+        raise HTTPException(status_code=400, detail="No messages provided")
+    
+    # Convert Pydantic Message objects to dicts and validate
+    raw_messages = [msg.dict() if hasattr(msg, 'dict') else msg for msg in request.messages]
+    logger.debug(f"Raw incoming messages: {raw_messages}")
+    
+    # Normalize and validate messages
+    normalized_messages = []
+    for i, msg in enumerate(raw_messages):
+        if not isinstance(msg, dict):
+            logger.error(f"Message {i} is not a dict: {msg}")
+            raise HTTPException(status_code=400, detail=f"Message {i} is not a valid message object")
+        
+        if 'role' not in msg or 'content' not in msg:
+            logger.error(f"Message {i} missing required fields: {msg}")
+            raise HTTPException(status_code=400, detail=f"Message {i} missing required fields: role and content")
+        
+        role = msg['role']
+        content = msg['content']
+        
+        if role not in {"user", "assistant", "system"}:
+            logger.error(f"Message {i} has invalid role: {role}")
+            raise HTTPException(status_code=400, detail=f"Message {i} has invalid role: {role}. Must be 'user', 'assistant', or 'system'")
+        
+        if not content or not content.strip():
+            logger.error(f"Message {i} has empty content")
+            raise HTTPException(status_code=400, detail=f"Message {i} has empty content")
+        
+        normalized = {"role": role, "content": content.strip()}
+        logger.debug(f"Successfully normalized message {i}: {msg} -> {normalized}")
+        normalized_messages.append(normalized)
+    
+    logger.debug(f"Normalized messages to be processed: {normalized_messages}")
+
+    if not normalized_messages:
+        logger.error("No valid messages after normalization")
+        raise HTTPException(status_code=400, detail="No valid messages to process")
+
     try:
-        logger.info(f"Streaming chat endpoint called with {len(request.messages)} messages")
-        # Convert Pydantic Message objects to dicts
-        raw_messages = [msg.dict() if hasattr(msg, 'dict') else msg for msg in request.messages]
-        logger.debug(f"Raw incoming messages: {raw_messages}")
-        # Normalize messages
-        normalized_messages = []
-        for i, msg in enumerate(raw_messages):
-            if not isinstance(msg, dict):
-                logger.error(f"Message {i} is not a dict: {msg}")
-                continue
-            if 'role' not in msg or 'content' not in msg:
-                logger.error(f"Message {i} missing required fields: {msg}")
-                continue
-            role = msg['role']
-            content = msg['content']
-            if role not in {"user", "assistant", "system"}:
-                logger.error(f"Message {i} has invalid role: {role}")
-                continue
-            normalized = {"role": role, "content": content.strip()}
-            logger.debug(f"Successfully normalized message {i}: {msg} -> {normalized}")
-            normalized_messages.append(normalized)
-        logger.debug(f"Normalized messages to be processed: {normalized_messages}")
-
-        if not normalized_messages:
-            logger.error("No valid messages after normalization")
-            raise HTTPException(status_code=400, detail="No valid messages to process")
-
         # Get the agent and process messages
         agent = await get_agent()
         async def stream_responses():

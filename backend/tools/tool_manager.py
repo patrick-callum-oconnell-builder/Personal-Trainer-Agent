@@ -132,6 +132,11 @@ class ToolManager:
                     name="send_email",
                     func=self.gmail_service.send_message,
                     description="Send an email to a recipient"
+                ),
+                Tool(
+                    name="get_recent_emails",
+                    func=self.gmail_service.get_recent_emails,
+                    description="Get recent emails from Gmail"
                 )
             ])
         
@@ -159,6 +164,11 @@ class ToolManager:
                     name="search_drive",
                     func=self.drive_service.search_files,
                     description="Search for files in Google Drive"
+                ),
+                Tool(
+                    name="create_folder",
+                    func=self.drive_service.create_folder,
+                    description="Create a new folder in Google Drive"
                 )
             ])
         
@@ -198,9 +208,14 @@ class ToolManager:
                     description="Get directions between two locations"
                 ),
                 Tool(
-                    name="find_nearby_workout_locations",
+                    name="get_nearby_locations",
                     func=self.maps_service.find_nearby_workout_locations,
-                    description="Find nearby workout locations (gyms, fitness centers, etc.) near a given location"
+                    description="Find nearby workout locations like gyms, parks, etc."
+                ),
+                Tool(
+                    name="get_nearby_places",
+                    func=self.maps_service.find_nearby_places,
+                    description="Find nearby places of interest"
                 )
             ])
         
@@ -229,7 +244,7 @@ class ToolManager:
             # Find the tool
             tool = self.get_tool_by_name(tool_name)
             if not tool:
-                raise ValueError(f"Tool {tool_name} not found")
+                return f"Error: Tool {tool_name} not found"
 
             # Special handling for add_preference_to_kg
             if tool_name == "add_preference_to_kg":
@@ -258,13 +273,33 @@ class ToolManager:
 
             # Execute the tool for other cases
             logger.info(f"Executing tool {tool_name} with args: {args}")
-            result = await tool.func(args) if asyncio.iscoroutinefunction(tool.func) else tool.func(args)
+            
+            # Special handling for get_tasks to extract tasklist_id
+            if tool_name == "get_tasks":
+                tasklist_id = args.get('tasklist_id', '@default') if isinstance(args, dict) else '@default'
+                result = await tool.func(tasklist_id) if asyncio.iscoroutinefunction(tool.func) else tool.func(tasklist_id)
+            elif tool_name == "create_workout_tracker":
+                title = args.get('title', 'Workout Tracker') if isinstance(args, dict) else str(args) if args else 'Workout Tracker'
+                result = await tool.func(title) if asyncio.iscoroutinefunction(tool.func) else tool.func(title)
+            elif tool_name == "get_recent_emails":
+                count = args.get('count', 10) if isinstance(args, dict) else int(args) if args else 10
+                result = await tool.func(count) if asyncio.iscoroutinefunction(tool.func) else tool.func(count)
+            else:
+                result = await tool.func(args) if asyncio.iscoroutinefunction(tool.func) else tool.func(args)
+            
+            # Format result to string if it's not already a string
+            if not isinstance(result, str):
+                if isinstance(result, (list, dict)):
+                    result = json.dumps(result, indent=2, default=str)
+                else:
+                    result = str(result)
+            
             logger.info(f"Tool {tool_name} returned: {result}")
             return result
 
         except Exception as e:
             logger.error(f"Error executing tool {tool_name}: {str(e)}")
-            raise
+            return f"Error executing tool {tool_name}: {str(e)}"
     
     def _parse_string_args(self, tool_name: str, args: str) -> Dict[str, Any]:
         """Parse string arguments into the appropriate format for each tool."""
@@ -335,72 +370,40 @@ class ToolManager:
             return {"query": args} if args else {}
     
     async def _resolve_calendar_conflict(self, conflict_data: Union[str, Dict[str, Any]]) -> str:
-        """Handle calendar conflict resolution."""
+        """Resolve calendar conflicts by replacing, deleting, or skipping conflicting events."""
         try:
             if isinstance(conflict_data, str):
                 conflict_data = json.loads(conflict_data)
             
-            event_details = conflict_data.get("event_details")
-            conflict_action = conflict_data.get("action", "skip")  # skip, replace, or delete
+            proposed_event = conflict_data.get('proposed_event', {})
+            conflicting_events = conflict_data.get('conflicting_events', [])
+            resolution_action = conflict_data.get('resolution_action', 'replace')
             
-            if not event_details:
-                return "Error: Missing event_details in conflict resolution request"
+            if resolution_action == 'replace':
+                # Delete conflicting events and create the new one
+                for event in conflicting_events:
+                    await self.calendar_service.delete_event(event['id'])
+                
+                result = await self.calendar_service.write_event(proposed_event)
+                return f"Replaced {len(conflicting_events)} conflicting events with new workout session"
             
-            # Convert to proper format if needed
-            if isinstance(event_details, str):
-                event_details = json.loads(event_details)
+            elif resolution_action == 'delete':
+                # Just delete conflicting events
+                for event in conflicting_events:
+                    await self.calendar_service.delete_event(event['id'])
+                return f"Deleted {len(conflicting_events)} conflicting events"
             
-            event_details = self._convert_to_calendar_format(event_details)
-            result = await self.calendar_service.write_event_with_conflict_resolution(event_details, conflict_action)
+            elif resolution_action == 'skip':
+                # Skip creating the new event
+                return f"Skipped creating workout session due to {len(conflicting_events)} conflicts"
             
-            if isinstance(result, dict) and result.get("type") == "conflict":
-                return f"Conflict still exists after resolution attempt: {result['message']}"
             else:
-                return f"Successfully created event with conflict resolution (action: {conflict_action})"
+                return f"Unknown resolution action: {resolution_action}"
                 
         except Exception as e:
             logger.error(f"Error resolving calendar conflict: {e}")
-            return f"Error resolving conflict: {str(e)}"
-    
-    def _convert_to_calendar_format(self, event_details: Dict[str, Any]) -> Dict[str, Any]:
-        """Convert event details to Google Calendar format."""
-        converted = event_details.copy()
-        
-        # Get user timezone (default to Pacific Time)
-        user_tz = pytz.timezone('America/Los_Angeles')
-        
-        # Convert start time if it's a string
-        if 'start' in converted and isinstance(converted['start'], str):
-            # Parse the datetime string and add timezone
-            try:
-                dt = datetime.fromisoformat(converted['start'].replace('Z', '+00:00'))
-                if dt.tzinfo is None:
-                    dt = user_tz.localize(dt)
-                converted['start'] = {'dateTime': dt.isoformat()}
-            except ValueError:
-                # If parsing fails, try to add timezone to the string
-                if not converted['start'].endswith('Z') and '+' not in converted['start']:
-                    converted['start'] = {'dateTime': converted['start'] + '-08:00'}  # PST
-                else:
-                    converted['start'] = {'dateTime': converted['start']}
-        
-        # Convert end time if it's a string
-        if 'end' in converted and isinstance(converted['end'], str):
-            # Parse the datetime string and add timezone
-            try:
-                dt = datetime.fromisoformat(converted['end'].replace('Z', '+00:00'))
-                if dt.tzinfo is None:
-                    dt = user_tz.localize(dt)
-                converted['end'] = {'dateTime': dt.isoformat()}
-            except ValueError:
-                # If parsing fails, try to add timezone to the string
-                if not converted['end'].endswith('Z') and '+' not in converted['end']:
-                    converted['end'] = {'dateTime': converted['end'] + '-08:00'}  # PST
-                else:
-                    converted['end'] = {'dateTime': converted['end']}
-        
-        return converted
-    
+            return f"Error resolving calendar conflict: {str(e)}"
+
     async def convert_natural_language_to_calendar_json(self, natural_language_input: str) -> str:
         """Convert natural language input to JSON format for calendar events using LLM."""
         pacific_tz = pytz.timezone('America/Los_Angeles')

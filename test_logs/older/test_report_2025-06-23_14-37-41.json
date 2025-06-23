@@ -1,0 +1,209 @@
+{
+  "timestamp": "2025-06-23T14:37:41.801960",
+  "summary": {
+    "total_tests": 43,
+    "passed_tests": 41,
+    "failed_tests": 2,
+    "error_tests": 0,
+    "success_rate_percentage": 95.35,
+    "coverage_percentage": 33
+  },
+  "failed_tests": [
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_decide_next_action_tool_call_with_timeframe",
+      "status": "failed",
+      "error": "assert \"{'timeMin': '2025-06-20T00:00:00Z'}\" == {'timeMin': '2025-06-20T00:00:00Z'}\n +  where \"{'timeMin': '2025-06-20T00:00:00Z'}\" = <function literal_eval at 0x104e43910>('\"{\\'timeMin\\': \\'2025-06-20T00:00:00Z\\'}\"')\n +    where <function literal_eval at 0x104e43910> = ast.literal_eval",
+      "error_type": null,
+      "runtime": 0.011,
+      "traceback": "backend/tests/unit/test_agent_state_machine.py:145: in test_decide_next_action_tool_call_with_timeframe\n    assert ast.literal_eval(result[\"args\"]) == timeframe\nE   assert \"{'timeMin': '2025-06-20T00:00:00Z'}\" == {'timeMin': '2025-06-20T00:00:00Z'}\nE    +  where \"{'timeMin': '2025-06-20T00:00:00Z'}\" = <function literal_eval at 0x104e43910>('\"{\\'timeMin\\': \\'2025-06-20T00:00:00Z\\'}\"')\nE    +    where <function literal_eval at 0x104e43910> = ast.literal_eval",
+      "stdout": null,
+      "stderr": null
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_process_messages_stream_no_user_message",
+      "status": "failed",
+      "error": "AssertionError: assert False\n +  where False = isinstance(<AsyncMock name='mock()' id='4394173968'>, str)",
+      "error_type": null,
+      "runtime": 0.014,
+      "traceback": "backend/tests/unit/test_agent_state_machine.py:221: in test_process_messages_stream_no_user_message\n    assert isinstance(responses[0], str)\nE   AssertionError: assert False\nE    +  where False = isinstance(<AsyncMock name='mock()' id='4394173968'>, str)",
+      "stdout": null,
+      "stderr": null
+    }
+  ],
+  "test_runtimes": [
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_process_messages",
+      "runtime": 79.544
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_gmail_tools",
+      "runtime": 0.525
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_tasks_tools",
+      "runtime": 0.501
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_calendar_tools",
+      "runtime": 0.467
+    },
+    {
+      "test_name": "::backend.tests.unit.test_services.TestGoogleServices::test_fit_service",
+      "runtime": 0.11
+    },
+    {
+      "test_name": "::backend.tests.unit.test_services.TestGoogleServices::test_maps_service",
+      "runtime": 0.103
+    },
+    {
+      "test_name": "::backend.tests.unit.test_services.TestGoogleServices::test_tasks_service",
+      "runtime": 0.089
+    },
+    {
+      "test_name": "::backend.tests.unit.test_services.TestGoogleServices::test_drive_service",
+      "runtime": 0.072
+    },
+    {
+      "test_name": "::backend.tests.unit.test_services.TestGoogleServices::test_calendar_service",
+      "runtime": 0.063
+    },
+    {
+      "test_name": "::backend.tests.unit.test_services.TestGoogleServices::test_sheets_service",
+      "runtime": 0.057
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_sheets_tools",
+      "runtime": 0.029
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_drive_tools",
+      "runtime": 0.027
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_tool_creation",
+      "runtime": 0.023
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_initialization",
+      "runtime": 0.022
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_state_machine_complete_workflow",
+      "runtime": 0.02
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_process_messages_stream_message_response",
+      "runtime": 0.016
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_process_messages_stream_tool_call_flow",
+      "runtime": 0.016
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_process_messages_stream_no_user_message",
+      "runtime": 0.014
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_process_messages_stream_empty_messages",
+      "runtime": 0.013
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_decide_next_action_exception_handling",
+      "runtime": 0.013
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_state_machine_with_conversation_history",
+      "runtime": 0.013
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_decide_next_action_empty_llm_response",
+      "runtime": 0.011
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_decide_next_action_tool_call_with_timeframe",
+      "runtime": 0.011
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_decide_next_action_message_response",
+      "runtime": 0.011
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_process_messages_stream_tool_call_empty_summary",
+      "runtime": 0.011
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_process_messages_stream_exception_handling",
+      "runtime": 0.011
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_init",
+      "runtime": 0.01
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_convert_message_dict_assistant",
+      "runtime": 0.01
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_convert_message_dict_user",
+      "runtime": 0.01
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_decide_next_action_history_list_format",
+      "runtime": 0.01
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_convert_message_string",
+      "runtime": 0.009
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_decide_next_action_tool_prefix_detected",
+      "runtime": 0.008
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_decide_next_action_preference_detected",
+      "runtime": 0.007
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_convert_message_dict_other",
+      "runtime": 0.007
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_decide_next_action_tool_call_detected",
+      "runtime": 0.007
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_convert_message_langchain_message",
+      "runtime": 0.007
+    },
+    {
+      "test_name": "backend/tests/unit/test_knowledge_graph.py::backend.tests.unit.test_knowledge_graph::test_persistence",
+      "runtime": 0.005
+    },
+    {
+      "test_name": "backend/tests/unit/test_knowledge_graph.py::backend.tests.unit.test_knowledge_graph::test_entity_creation",
+      "runtime": 0.002
+    },
+    {
+      "test_name": "backend/tests/unit/test_knowledge_graph.py::backend.tests.unit.test_knowledge_graph::test_prompt_parsing",
+      "runtime": 0.002
+    },
+    {
+      "test_name": "backend/tests/unit/test_knowledge_graph.py::backend.tests.unit.test_knowledge_graph::test_relation_creation",
+      "runtime": 0.001
+    },
+    {
+      "test_name": "backend/tests/unit/test_knowledge_graph.py::backend.tests.unit.test_knowledge_graph::test_pattern_matching",
+      "runtime": 0.001
+    },
+    {
+      "test_name": "backend/tests/unit/test_knowledge_graph.py::backend.tests.unit.test_knowledge_graph::test_relationship_indicators",
+      "runtime": 0.001
+    },
+    {
+      "test_name": "backend/tests/unit/test_knowledge_graph.py::backend.tests.unit.test_knowledge_graph::test_query_method",
+      "runtime": 0.001
+    }
+  ],
+  "total_runtime": 81.89000000000004,
+  "average_runtime": 1.9044186046511637
+}

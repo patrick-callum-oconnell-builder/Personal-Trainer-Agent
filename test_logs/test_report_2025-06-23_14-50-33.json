@@ -1,0 +1,223 @@
+{
+  "timestamp": "2025-06-23T14:50:33.917887",
+  "summary": {
+    "total_tests": 44,
+    "passed_tests": 41,
+    "failed_tests": 2,
+    "error_tests": 1,
+    "success_rate_percentage": 93.18,
+    "coverage_percentage": 32
+  },
+  "failed_tests": [
+    {
+      "test_name": "::::backend.tests.unit.test_utils",
+      "status": "error",
+      "error": "collection failure",
+      "error_type": null,
+      "runtime": 0.0,
+      "traceback": "/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/mock.py:1248: in _dot_lookup\n    return getattr(thing, comp)\nE   AttributeError: module 'backend.tests.unit' has no attribute 'test_utils'\n\nDuring handling of the above exception, another exception occurred:\nbackend/tests/unit/test_utils.py:16: in <module>\n    with patch(__name__ + '.llm_check_response_intent', lambda *args, **kwargs: True):\n/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/mock.py:1431: in __enter__\n    self.target = self.getter()\n/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/mock.py:1618: in <lambda>\n    getter = lambda: _importer(target)\n/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/mock.py:1261: in _importer\n    thing = _dot_lookup(thing, comp, import_path)\n/Library/Frameworks/Python.framework/Versions/3.10/lib/python3.10/unittest/mock.py:1251: in _dot_lookup\n    return getattr(thing, comp)\nE   AttributeError: module 'backend.tests.unit' has no attribute 'test_utils'",
+      "stdout": null,
+      "stderr": null
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_convert_message_langchain_message",
+      "status": "failed",
+      "error": "assert 'Test message' == \"content='Tes...e_metadata={}\"\n  \n  - content='Test message' additional_kwargs={} response_metadata={}\n  + Test message",
+      "error_type": null,
+      "runtime": 0.01,
+      "traceback": "backend/tests/unit/test_agent_state_machine.py:101: in test_convert_message_langchain_message\n    assert result.content == \"content='Test message' additional_kwargs={} response_metadata={}\"\nE   assert 'Test message' == \"content='Tes...e_metadata={}\"\nE     \nE     - content='Test message' additional_kwargs={} response_metadata={}\nE     + Test message",
+      "stdout": null,
+      "stderr": null
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_state_machine_with_conversation_history",
+      "status": "failed",
+      "error": "assert ['Can you help me?'] == [\"content='Ca..._metadata={}\"]\n  \n  At index 0 diff: 'Can you help me?' != \"content='Can you help me?' additional_kwargs={} response_metadata={}\"\n  \n  Full diff:\n    [\n  -     \"content='Can you help me?' additional_kwargs={} response_metadata={}\",\n  +     'Can you help me?',\n    ]",
+      "error_type": null,
+      "runtime": 0.017,
+      "traceback": "backend/tests/unit/test_agent_state_machine.py:409: in test_state_machine_with_conversation_history\n    assert call_args == [str(messages[-1])]\nE   assert ['Can you help me?'] == [\"content='Ca..._metadata={}\"]\nE     \nE     At index 0 diff: 'Can you help me?' != \"content='Can you help me?' additional_kwargs={} response_metadata={}\"\nE     \nE     Full diff:\nE       [\nE     -     \"content='Can you help me?' additional_kwargs={} response_metadata={}\",\nE     +     'Can you help me?',\nE       ]",
+      "stdout": null,
+      "stderr": null
+    }
+  ],
+  "test_runtimes": [
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_process_messages",
+      "runtime": 0.449
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_calendar_tools",
+      "runtime": 0.447
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_tasks_tools",
+      "runtime": 0.447
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_gmail_tools",
+      "runtime": 0.447
+    },
+    {
+      "test_name": "::backend.tests.unit.test_services.TestGoogleServices::test_calendar_service",
+      "runtime": 0.076
+    },
+    {
+      "test_name": "::backend.tests.unit.test_services.TestGoogleServices::test_fit_service",
+      "runtime": 0.068
+    },
+    {
+      "test_name": "::backend.tests.unit.test_services.TestGoogleServices::test_drive_service",
+      "runtime": 0.066
+    },
+    {
+      "test_name": "::backend.tests.unit.test_services.TestGoogleServices::test_tasks_service",
+      "runtime": 0.04
+    },
+    {
+      "test_name": "::backend.tests.unit.test_services.TestGoogleServices::test_sheets_service",
+      "runtime": 0.031
+    },
+    {
+      "test_name": "::backend.tests.unit.test_services.TestGoogleServices::test_maps_service",
+      "runtime": 0.031
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_sheets_tools",
+      "runtime": 0.025
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_tool_creation",
+      "runtime": 0.024
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_drive_tools",
+      "runtime": 0.024
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent.TestPersonalTrainerAgent::test_initialization",
+      "runtime": 0.024
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_process_messages_stream_tool_call_flow",
+      "runtime": 0.018
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_process_messages_stream_exception_handling",
+      "runtime": 0.018
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_state_machine_with_conversation_history",
+      "runtime": 0.017
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_process_messages_stream_tool_call_empty_summary",
+      "runtime": 0.016
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_state_machine_complete_workflow",
+      "runtime": 0.015
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_process_messages_stream_message_response",
+      "runtime": 0.014
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_init",
+      "runtime": 0.012
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_decide_next_action_message_response",
+      "runtime": 0.012
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_process_messages_stream_empty_messages",
+      "runtime": 0.012
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_decide_next_action_preference_detected",
+      "runtime": 0.011
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_convert_message_dict_other",
+      "runtime": 0.011
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_decide_next_action_empty_llm_response",
+      "runtime": 0.011
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_decide_next_action_history_list_format",
+      "runtime": 0.011
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_decide_next_action_tool_prefix_detected",
+      "runtime": 0.011
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_process_messages_stream_no_user_message",
+      "runtime": 0.011
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_decide_next_action_exception_handling",
+      "runtime": 0.011
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_convert_message_string",
+      "runtime": 0.01
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_convert_message_langchain_message",
+      "runtime": 0.01
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_convert_message_dict_user",
+      "runtime": 0.01
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_decide_next_action_tool_call_with_timeframe",
+      "runtime": 0.01
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_decide_next_action_tool_call_detected",
+      "runtime": 0.009
+    },
+    {
+      "test_name": "::backend.tests.unit.test_agent_state_machine.TestAgentStateMachine::test_convert_message_dict_assistant",
+      "runtime": 0.008
+    },
+    {
+      "test_name": "backend/tests/unit/test_knowledge_graph.py::backend.tests.unit.test_knowledge_graph::test_persistence",
+      "runtime": 0.006
+    },
+    {
+      "test_name": "backend/tests/unit/test_knowledge_graph.py::backend.tests.unit.test_knowledge_graph::test_entity_creation",
+      "runtime": 0.001
+    },
+    {
+      "test_name": "backend/tests/unit/test_knowledge_graph.py::backend.tests.unit.test_knowledge_graph::test_relation_creation",
+      "runtime": 0.001
+    },
+    {
+      "test_name": "backend/tests/unit/test_knowledge_graph.py::backend.tests.unit.test_knowledge_graph::test_query_method",
+      "runtime": 0.001
+    },
+    {
+      "test_name": "backend/tests/unit/test_knowledge_graph.py::backend.tests.unit.test_knowledge_graph::test_pattern_matching",
+      "runtime": 0.001
+    },
+    {
+      "test_name": "backend/tests/unit/test_knowledge_graph.py::backend.tests.unit.test_knowledge_graph::test_prompt_parsing",
+      "runtime": 0.001
+    },
+    {
+      "test_name": "backend/tests/unit/test_knowledge_graph.py::backend.tests.unit.test_knowledge_graph::test_relationship_indicators",
+      "runtime": 0.001
+    },
+    {
+      "test_name": "::::backend.tests.unit.test_utils",
+      "runtime": 0.0
+    }
+  ],
+  "total_runtime": 2.4789999999999988,
+  "average_runtime": 0.05634090909090906
+}

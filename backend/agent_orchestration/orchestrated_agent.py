@@ -39,15 +39,9 @@ class OrchestratedAgent:
 
     async def extract_preference_llm(self, text: str):
         """Use the LLM to extract a user preference from text. Returns the preference string or None."""
-        prompt = (
-            "You are an AI assistant that extracts user preferences from text. "
-            "Return ONLY the preference (e.g., 'pizza', 'martial arts', 'strength training'), "
-            "or 'None' if no clear preference is found. Do not include any explanation or extra text.\n"
-            f"Text: {text}"
-        )
         messages = [
-            SystemMessage(content="You are an AI assistant that extracts user preferences from text. Respond with only the preference or 'None'."),
-            HumanMessage(content=prompt)
+            SystemMessage(content="You are an AI assistant that extracts user preferences from text. Return ONLY the preference (e.g., 'pizza', 'martial arts', 'strength training'), or 'None' if no clear preference is found. Do not include any explanation or extra text."),
+            HumanMessage(content=f"Text: {text}")
         ]
         response = await self.llm.ainvoke(messages)
         preference = response.content.strip()

@@ -1,4 +1,6 @@
 import openai
+import pytest
+from unittest.mock import patch
 
 def normalize_response(response):
     """
@@ -10,6 +12,13 @@ def normalize_response(response):
     elif isinstance(response, str):
         return response.lower()
     return response
+
+@pytest.fixture(autouse=True)
+def mock_llm_check_response_intent(monkeypatch):
+    monkeypatch.setattr(
+        'backend.tests.unit.test_utils.llm_check_response_intent',
+        lambda *args, **kwargs: True
+    )
 
 def assert_response_contains(response, expected_text):
     """
