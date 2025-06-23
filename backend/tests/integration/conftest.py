@@ -66,5 +66,4 @@ async def agent(google_services):
         sheets_service=services['sheets_service'],
         maps_service=services['maps_service']
     )
-    await agent.async_init()
     return agent 

@@ -190,5 +190,11 @@ class TestPersonalTrainerAgent(unittest.IsolatedAsyncioTestCase):
         self.assertGreater(len(result), 0)
         self.assertIn("I'll help you start working out", result)
 
+async def collect_stream(agent, messages):
+    responses = []
+    async for response in agent.process_messages_stream(messages):
+        responses.append(response)
+    return "\n".join(responses) if responses else "No response generated."
+
 if __name__ == '__main__':
     unittest.main() 

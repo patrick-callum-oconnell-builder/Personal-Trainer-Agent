@@ -139,22 +139,15 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, x_api_ke
 
         # Get the agent and process messages
         agent = await get_agent()
-        responses = await agent.process_messages(normalized_messages)
+        responses = []
+        async for response in agent.process_messages_stream(normalized_messages):
+            responses.append(response)
         logger.info("Successfully processed messages")
-        
-        # Handle both single response (string) and multiple responses (list)
-        if isinstance(responses, list):
-            # Return multiple responses in a structured format
-            return {
-                "responses": responses,
-                "type": "multiple"
-            }
-        else:
-            # Backward compatibility for single response
-            return {
-                "response": responses,
-                "type": "single"
-            }
+        combined_response = "\n".join(responses) if responses else "No response generated."
+        return {
+            "response": combined_response,
+            "type": "single"
+        }
     except Exception as e:
         import traceback
         logger.error(f"Error in /chat endpoint: {str(e)}", exc_info=True)

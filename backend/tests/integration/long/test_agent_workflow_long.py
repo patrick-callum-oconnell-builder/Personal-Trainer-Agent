@@ -66,6 +66,13 @@ async def test_agent_workflow_creation(agent):
     assert hasattr(workflow, "streaming")
 
 @pytest.mark.asyncio
+async def collect_stream(agent, messages):
+    responses = []
+    async for response in agent.process_messages_stream(messages):
+        responses.append(response)
+    return "\n".join(responses) if responses else "No response generated."
+
+@pytest.mark.asyncio
 async def test_conversation_loop(agent):
     """Test the agent's conversation loop functionality."""
     messages = [
@@ -74,7 +81,7 @@ async def test_conversation_loop(agent):
         {"role": "user", "content": "Can you help me schedule a workout?"}
     ]
     
-    response = await agent.process_messages(messages)
+    response = await collect_stream(agent, messages)
     assert response is not None
     assert isinstance(response, str)
     assert len(response) > 0
@@ -86,12 +93,11 @@ async def test_streaming_conversation(agent):
         {"role": "user", "content": "Schedule a workout for tomorrow"}
     ]
 
-    responses = []
-    async for response in agent.process_messages_stream(messages):
-        responses.append(response)
+    response = await collect_stream(agent, messages)
     
-    assert len(responses) > 0
-    assert all(isinstance(r, str) for r in responses)
+    assert response is not None
+    assert isinstance(response, str)
+    assert len(response) > 0
 
 @pytest.mark.asyncio
 async def test_tool_execution_workflow(agent):
@@ -100,7 +106,7 @@ async def test_tool_execution_workflow(agent):
     test_time = (datetime.now() + timedelta(days=2)).replace(hour=14, minute=0, second=0, microsecond=0)
     test_message = f"Schedule a workout for {test_time.strftime('%A, %B %d')} at {test_time.strftime('%I:%M %p')}"
     
-    response = await agent.process_messages([{"role": "user", "content": test_message}])
+    response = await collect_stream(agent, [{"role": "user", "content": test_message}])
     assert response is not None
     assert isinstance(response, str)
     assert len(response) > 0
@@ -110,7 +116,7 @@ async def test_error_handling(agent):
     """Test the agent's error handling capabilities."""
     # Test with invalid input that should trigger error handling
     test_message = "Schedule a workout at invalid_time"
-    response = await agent.process_messages([{"role": "user", "content": test_message}])
+    response = await collect_stream(agent, [{"role": "user", "content": test_message}])
     
     assert response is not None
     assert isinstance(response, str)

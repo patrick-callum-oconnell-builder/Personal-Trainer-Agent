@@ -19,10 +19,16 @@ async def test_maps_tool_call(agent):
     messages = [
         HumanMessage(content="Find gyms near 1 Infinite Loop, Cupertino, CA")
     ]
-    response = await agent_instance.process_messages(messages)
+    response = await collect_stream(agent_instance, messages)
     print(f"Maps tool call response: {response}")
     assert response is not None
     assert llm_evaluate_maps_response(response), f"Response did not pass LLM evaluation: {response}"
+
+async def collect_stream(agent, messages):
+    responses = []
+    async for response in agent.process_messages_stream(messages):
+        responses.append(response)
+    return "\n".join(responses) if responses else "No response generated."
 
 # Add a placeholder for LLM evaluation
 def llm_evaluate_maps_response(response):

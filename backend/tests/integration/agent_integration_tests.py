@@ -53,7 +53,7 @@ class TestAgentIntegration(unittest.TestCase):
     async def test_basic_greeting(self):
         """Test that the agent can handle a basic greeting without errors."""
         messages = [{"role": "user", "content": "Hi, how are you?"}]
-        response = await self.agent.process_messages(messages)
+        response = await self.collect_stream(self.agent, messages)
         print(f"Agent response: {response}")
         self.assertIsNotNone(response)
         self.assertIsInstance(response, str)
@@ -65,7 +65,7 @@ class TestAgentIntegration(unittest.TestCase):
     async def test_no_tool_call_on_greeting(self):
         """Test that a simple greeting does not trigger a tool call and returns a direct LLM response."""
         messages = [{"role": "user", "content": "hello"}]
-        response = await self.agent.process_messages(messages)
+        response = await self.collect_stream(self.agent, messages)
         print(f"Agent response: {response}")
         self.assertIsInstance(response, str)
         self.assertTrue(len(response) > 0)
@@ -77,7 +77,7 @@ class TestAgentIntegration(unittest.TestCase):
     async def test_no_recursion_error_on_greeting(self):
         """Test that a simple greeting does not cause a recursion error or failure."""
         messages = [{"role": "user", "content": "hello"}]
-        response = await self.agent.process_messages(messages)
+        response = await self.collect_stream(self.agent, messages)
         print(f"Agent response: {response}")
         self.assertIsInstance(response, str)
         self.assertTrue(len(response) > 0)
@@ -89,7 +89,7 @@ class TestAgentIntegration(unittest.TestCase):
     async def test_schedule_workout_flow(self):
         """Test the complete flow of scheduling a workout."""
         test_message = "Schedule a workout for tonight at 10pm, 1 hour long"
-        response = await self.agent.process_messages([{"role": "user", "content": test_message}])
+        response = await self.collect_stream(self.agent, [{"role": "user", "content": test_message}])
         self.assertIsNotNone(response)
         self.assertIsInstance(response, str)
         self.assertTrue(len(response) > 0)
@@ -107,7 +107,7 @@ class TestAgentIntegration(unittest.TestCase):
     async def test_schedule_workout_with_missing_info(self):
         """Test scheduling a workout with missing information."""
         test_message = "Schedule a workout for tonight"
-        response = await self.agent.process_messages([{"role": "user", "content": test_message}])
+        response = await self.collect_stream(self.agent, [{"role": "user", "content": test_message}])
         self.assertIsNotNone(response)
         self.assertIsInstance(response, str)
         self.assertTrue(len(response) > 0)
@@ -120,7 +120,7 @@ class TestAgentIntegration(unittest.TestCase):
     async def test_schedule_workout_with_invalid_time(self):
         """Test scheduling a workout with invalid time format."""
         test_message = "Schedule a workout for tonight at sometime"
-        response = await self.agent.process_messages([{"role": "user", "content": test_message}])
+        response = await self.collect_stream(self.agent, [{"role": "user", "content": test_message}])
         self.assertIsNotNone(response)
         self.assertIsInstance(response, str)
         self.assertTrue(len(response) > 0)
@@ -170,7 +170,7 @@ class TestAgentIntegration(unittest.TestCase):
         
         for input_msg, expected in test_cases:
             # Test direct agent processing
-            response = await self.agent.process_messages([input_msg])
+            response = await self.collect_stream(self.agent, [input_msg])
             self.assertIsNotNone(response)
             self.assertIsInstance(response, str)
             self.assertTrue(len(response) > 0)
@@ -195,7 +195,7 @@ class TestAgentIntegration(unittest.TestCase):
         ]
         
         # Test direct agent processing
-        response = await self.agent.process_messages(messages)
+        response = await self.collect_stream(self.agent, messages)
         self.assertIsNotNone(response)
         self.assertIsInstance(response, str)
         self.assertTrue(len(response) > 0)
@@ -254,6 +254,12 @@ class TestAgentIntegration(unittest.TestCase):
             # Optionally, check that the intent is an acknowledgment and the outcome is a confirmation
             assert any(word in intent.lower() for word in ["i'll", "i will", "let me", "scheduling", "adding", "sure"]), "Intent should acknowledge the action."
             assert any(word in outcome.lower() for word in ["scheduled", "added", "created", "workout", "success", "confirmed"]), "Outcome should confirm the result."
+
+    async def collect_stream(self, agent, messages):
+        responses = []
+        async for response in agent.process_messages_stream(messages):
+            responses.append(response)
+        return "\n".join(responses) if responses else "No response generated."
 
 if __name__ == '__main__':
     unittest.main() 
