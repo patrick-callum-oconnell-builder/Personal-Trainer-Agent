@@ -43,7 +43,8 @@ from .state_handler import (
     ToolCallStateHandler,
     SummarizeToolResultStateHandler,
     ErrorStateHandler,
-    StateTransitionGraph
+    StateTransitionGraph,
+    ConfirmationStateHandler
 )
 
 logger = logging.getLogger(__name__)
@@ -78,6 +79,7 @@ class AgentStateMachine:
         # Initialize state handlers
         self.state_handlers = {
             AgentState.THINKING: ThinkingStateHandler(self),
+            AgentState.CONFIRMATION: ConfirmationStateHandler(),
             AgentState.TOOL_CALL: ToolCallStateHandler(),
             AgentState.SUMMARIZE_TOOL_RESULT: SummarizeToolResultStateHandler(),
             AgentState.ERROR: ErrorStateHandler(),
@@ -113,6 +115,7 @@ class AgentStateMachine:
             # Initialize context
             context = {
                 'history': [user_message.content],
+                'user_input': user_message.content,
                 'agent_state': agent_state,
                 'execute_tool_func': execute_tool_func,
                 'get_tool_confirmation_func': get_tool_confirmation_func,
@@ -137,7 +140,31 @@ class AgentStateMachine:
                     next_state, response = await handler.handle(context)
                     if response:
                         yield response
-                    current_state = next_state
+                    
+                    # Special handling for confirmation state - immediately proceed to tool execution
+                    if current_state == AgentState.CONFIRMATION and next_state == AgentState.TOOL_CALL:
+                        # The confirmation message was sent, now execute the tool immediately
+                        tool_handler = self.state_handlers.get(AgentState.TOOL_CALL)
+                        if tool_handler:
+                            tool_state, tool_message = await tool_handler.handle(context)
+                            if tool_message:
+                                yield tool_message
+                            
+                            # If tool execution was successful, proceed to summarization
+                            if tool_state == AgentState.SUMMARIZE_TOOL_RESULT:
+                                summary_handler = self.state_handlers.get(AgentState.SUMMARIZE_TOOL_RESULT)
+                                if summary_handler:
+                                    final_state, summary_message = await summary_handler.handle(context)
+                                    if summary_message:
+                                        yield summary_message
+                                    current_state = final_state
+                                    break
+                            else:
+                                current_state = tool_state
+                        else:
+                            current_state = next_state
+                    else:
+                        current_state = next_state
                 except Exception as e:
                     logger.error(f"Error in state {current_state}: {e}")
                     yield f"Sorry, something went wrong: {str(e)}"
@@ -240,37 +267,16 @@ class AgentStateMachine:
 
     async def _extract_tool_call(self, response_text: str, user_input: str) -> Optional[Dict[str, Any]]:
         """
-        Extract tool call information and confirmation message from LLM response using multiple strategies.
+        Extract tool call information from LLM response using LLM-based tool selection.
         Returns a dict with keys: type, tool, args, confirmation.
         """
         try:
-            # Strategy 1: Check for explicit TOOL_CALL format
-            if "TOOL_CALL:" in response_text:
-                before, after = response_text.split("TOOL_CALL:", 1)
-                confirmation = before.strip()
-                tool_call_line = after.strip().split("\n")[0]
-                parts = tool_call_line.split(" ", 1)
-                if len(parts) >= 2:
-                    tool_name = parts[0].strip().rstrip(":")
-                    tool_args = parts[1].strip()
-                    tool_call = await self._validate_and_format_tool_call(tool_name, tool_args, user_input)
-                    if tool_call:
-                        tool_call["confirmation"] = confirmation
-                    return tool_call
-            # Strategy 2: Check for tool name prefixes
-            for tool in self.tools:
-                prefix = f"{tool.name}:"
-                if response_text.strip().startswith(prefix):
-                    confirmation = response_text.split(prefix, 1)[0].strip()
-                    tool_args = response_text.strip()[len(prefix):].strip()
-                    tool_call = await self._validate_and_format_tool_call(tool.name, tool_args, user_input)
-                    if tool_call:
-                        tool_call["confirmation"] = confirmation
-                    return tool_call
-            # Strategy 3: Use LLM to determine if a tool should be called
+            # Use LLM to determine if a tool should be called
             tool_call = await self._llm_tool_selection(response_text, user_input)
             if tool_call:
-                tool_call["confirmation"] = response_text.strip()
+                # Don't include the tool call format in the confirmation message
+                # The confirmation will be handled by the ConfirmationStateHandler
+                tool_call["confirmation"] = None
                 return tool_call
             return None
         except Exception as e:
@@ -402,7 +408,31 @@ class AgentStateMachine:
             Dict containing tool call details or None if no tool call should be made
         """
         try:
-            # Create a prompt for tool selection
+            # First, check if the response already contains a tool call in the expected format
+            # Look for patterns like: tool_name: "arguments" or TOOL_CALL: tool_name arguments
+            for tool in self.tools:
+                # Check for tool_name: "arguments" format
+                prefix = f"{tool.name}:"
+                if prefix in response_text:
+                    # Extract the tool call
+                    parts = response_text.split(prefix, 1)
+                    if len(parts) >= 2:
+                        tool_args = parts[1].strip()
+                        # Remove quotes if present
+                        if tool_args.startswith('"') and tool_args.endswith('"'):
+                            tool_args = tool_args[1:-1]
+                        return await self._validate_and_format_tool_call(tool.name, tool_args, user_input)
+            
+            # Check for TOOL_CALL: format as fallback
+            if "TOOL_CALL:" in response_text:
+                tool_call_line = response_text.split("TOOL_CALL:")[1].strip().split("\n")[0]
+                parts = tool_call_line.split(" ", 1)
+                if len(parts) >= 2:
+                    tool_name = parts[0].strip().rstrip(":")
+                    tool_args = parts[1].strip()
+                    return await self._validate_and_format_tool_call(tool_name, tool_args, user_input)
+            
+            # If no explicit tool call found, use LLM to determine if one should be made
             tool_descriptions = "\n".join([
                 f"- {tool.name}: {tool.description}" for tool in self.tools
             ])
@@ -491,6 +521,47 @@ class AgentStateMachine:
         else:
             return HumanMessage(content=str(msg))
 
+    def _determine_event(self, current_state: AgentState, next_state: AgentState, context: Dict[str, Any]) -> str:
+        """
+        Determine the event that caused the state transition.
+        
+        Args:
+            current_state: Current state
+            next_state: Next state
+            context: Current context
+            
+        Returns:
+            Event string
+        """
+        if current_state == AgentState.THINKING:
+            if next_state == AgentState.DONE:
+                return 'message_response'
+            elif next_state == AgentState.CONFIRMATION:
+                return 'tool_call'
+            else:
+                return 'error'
+        elif current_state == AgentState.CONFIRMATION:
+            # Check user input for confirmation or cancellation
+            user_input = context.get('user_input', '').lower()
+            if 'yes' in user_input or 'confirm' in user_input or 'sure' in user_input:
+                return 'confirmed'
+            elif 'no' in user_input or 'cancel' in user_input:
+                return 'cancelled'
+            else:
+                return 'error'
+        elif current_state == AgentState.TOOL_CALL:
+            if next_state == AgentState.SUMMARIZE_TOOL_RESULT:
+                return 'success'
+            else:
+                return 'error'
+        elif current_state == AgentState.SUMMARIZE_TOOL_RESULT:
+            if next_state == AgentState.DONE:
+                return 'success'
+            else:
+                return 'error'
+        else:
+            return 'error'
+
 
 class AgentTransitionMachine(AgentStateMachine):
     """
@@ -553,6 +624,7 @@ class AgentTransitionMachine(AgentStateMachine):
             # Initialize context
             context = {
                 'history': [user_message.content],
+                'user_input': user_message.content,
                 'agent_state': agent_state,
                 'execute_tool_func': execute_tool_func,
                 'get_tool_confirmation_func': get_tool_confirmation_func,
@@ -602,36 +674,4 @@ class AgentTransitionMachine(AgentStateMachine):
                 
         except Exception as e:
             logger.error(f"Error in process_messages_stream: {e}")
-            yield f"Error processing messages: {str(e)}"
-    
-    def _determine_event(self, current_state: AgentState, next_state: AgentState, context: Dict[str, Any]) -> str:
-        """
-        Determine the event that caused the state transition.
-        
-        Args:
-            current_state: Current state
-            next_state: Next state
-            context: Current context
-            
-        Returns:
-            Event string
-        """
-        if current_state == AgentState.THINKING:
-            if next_state == AgentState.DONE:
-                return 'message_response'
-            elif next_state == AgentState.TOOL_CALL:
-                return 'tool_call'
-            else:
-                return 'error'
-        elif current_state == AgentState.TOOL_CALL:
-            if next_state == AgentState.SUMMARIZE_TOOL_RESULT:
-                return 'success'
-            else:
-                return 'error'
-        elif current_state == AgentState.SUMMARIZE_TOOL_RESULT:
-            if next_state == AgentState.DONE:
-                return 'success'
-            else:
-                return 'error'
-        else:
-            return 'error' 
+            yield f"Error processing messages: {str(e)}" 

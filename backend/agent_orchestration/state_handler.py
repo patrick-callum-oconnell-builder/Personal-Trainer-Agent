@@ -16,6 +16,7 @@ logger = logging.getLogger(__name__)
 class AgentState(Enum):
     """Enumeration of possible agent states."""
     THINKING = "AGENT_THINKING"
+    CONFIRMATION = "AGENT_CONFIRMATION"
     TOOL_CALL = "AGENT_TOOL_CALL"
     SUMMARIZE_TOOL_RESULT = "AGENT_SUMMARIZE_TOOL_RESULT"
     DONE = "DONE"
@@ -56,9 +57,9 @@ class ThinkingStateHandler(StateHandler):
                 context['last_tool'] = agent_action["tool"]
                 context['agent_action'] = agent_action
                 if context.get('agent_state'):
-                    await context['agent_state'].update(status=AgentState.TOOL_CALL.value, last_tool_result=None)
-                confirmation_message = agent_action.get("confirmation") or "I'll proceed with your request."
-                return AgentState.TOOL_CALL, confirmation_message
+                    await context['agent_state'].update(status=AgentState.CONFIRMATION.value, last_tool_result=None)
+                # Transition to confirmation state instead of directly to tool call
+                return AgentState.CONFIRMATION, None
             else:
                 return AgentState.DONE, None
         except Exception as e:
@@ -119,6 +120,62 @@ class ErrorStateHandler(StateHandler):
         return AgentState.DONE, "Sorry, an error occurred and the agent cannot continue this conversation."
 
 
+class ConfirmationStateHandler(StateHandler):
+    """Handler for the AGENT_CONFIRMATION state."""
+    async def handle(self, context: Dict[str, Any]) -> tuple[AgentState, Optional[str]]:
+        """Send an informational confirmation message and proceed to tool execution."""
+        try:
+            # Generate an informational confirmation message for the user
+            agent_action = context.get('agent_action')
+            if not agent_action:
+                return AgentState.ERROR, "Sorry, I couldn't determine what to confirm."
+            tool = agent_action["tool"]
+            args = agent_action["args"]
+            
+            # Create a clean, user-friendly confirmation message without tool names
+            if tool == "create_calendar_event":
+                confirmation_message = "Sure, I'll add that to your calendar."
+            elif tool == "get_calendar_events":
+                confirmation_message = "I'll check your calendar for that time period."
+            elif tool == "send_email":
+                confirmation_message = "I'll send that email for you."
+            elif tool == "create_task":
+                confirmation_message = "I'll create that task for you."
+            elif tool == "get_tasks":
+                confirmation_message = "I'll get your tasks for you."
+            elif tool == "search_drive":
+                confirmation_message = "I'll search your Drive for that."
+            elif tool == "create_folder":
+                confirmation_message = "I'll create that folder for you."
+            elif tool == "create_workout_tracker":
+                confirmation_message = "I'll create a workout tracker for you."
+            elif tool == "add_workout_entry":
+                confirmation_message = "I'll log that workout for you."
+            elif tool == "add_nutrition_entry":
+                confirmation_message = "I'll log that nutrition entry for you."
+            elif tool == "get_directions":
+                confirmation_message = "I'll get those directions for you."
+            elif tool == "get_nearby_locations":
+                confirmation_message = "I'll find nearby locations for you."
+            elif tool == "add_preference_to_kg":
+                confirmation_message = "I'll remember that preference for you."
+            elif tool == "resolve_calendar_conflict":
+                confirmation_message = "I'll help resolve that calendar conflict."
+            else:
+                confirmation_message = "I'll take care of that for you."
+            
+            if context.get('agent_state'):
+                await context['agent_state'].update(status=AgentState.CONFIRMATION.value)
+            
+            # Immediately proceed to tool execution after confirming
+            return AgentState.TOOL_CALL, confirmation_message
+        except Exception as e:
+            logger.error(f"Error in ConfirmationStateHandler: {e}")
+            if context.get('agent_state'):
+                await context['agent_state'].update(status=AgentState.ERROR.value)
+            return AgentState.ERROR, f"Sorry, something went wrong while confirming the action: {str(e)}"
+
+
 class StateTransitionGraph:
     """Represents a state transition graph for the agent state machine."""
     
@@ -126,7 +183,12 @@ class StateTransitionGraph:
         self.transitions = {
             AgentState.THINKING: {
                 'message_response': AgentState.DONE,
-                'tool_call': AgentState.TOOL_CALL,
+                'tool_call': AgentState.CONFIRMATION,
+                'error': AgentState.ERROR,
+            },
+            AgentState.CONFIRMATION: {
+                'confirmed': AgentState.TOOL_CALL,
+                'cancelled': AgentState.DONE,
                 'error': AgentState.ERROR,
             },
             AgentState.TOOL_CALL: {
