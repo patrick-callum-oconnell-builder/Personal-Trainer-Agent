@@ -1,5 +1,9 @@
 from typing import Any, List, Optional
 from langchain_core.messages import BaseMessage, SystemMessage, HumanMessage, AIMessage
+import asyncio
+import logging
+
+logger = logging.getLogger(__name__)
 
 class OrchestratedAgent:
     """
@@ -81,7 +85,17 @@ class OrchestratedAgent:
             SystemMessage(content="You are an AI assistant that extracts user preferences from text. Return ONLY the preference (e.g., 'pizza', 'martial arts', 'strength training'), or 'None' if no clear preference is found. Do not include any explanation or extra text."),
             HumanMessage(content=f"Text: {text}")
         ]
-        response = await self.llm.ainvoke(messages)
+        
+        # Add timeout to prevent hanging
+        try:
+            response = await asyncio.wait_for(
+                self.llm.ainvoke(messages),
+                timeout=10.0  # 10 second timeout
+            )
+        except asyncio.TimeoutError:
+            logger.warning(f"LLM call timed out in extract_preference_llm for text: {text}")
+            return None
+        
         preference = response.content.strip()
         if preference.lower() == 'none' or not preference:
             return None

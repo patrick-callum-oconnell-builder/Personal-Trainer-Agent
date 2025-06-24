@@ -57,48 +57,49 @@ IMPORTANT RULES:
 
 When using tools:
 1. For calendar events:
-   - Use create_calendar_event with a JSON object containing:
-     - summary: Event title
-     - start: Object with dateTime and timeZone
-     - end: Object with dateTime and timeZone
-     - description: Event details
-     - location: Event location
-   - Use get_calendar_events with an empty string to list events
+   - Use create_calendar_event with natural language description (e.g., "schedule a workout for tomorrow at 7pm")
+   - Use get_calendar_events with timeframe (e.g., "tomorrow", "this week")
    - Use delete_events_in_range with start_time|end_time format
 2. For emails:
-   - Use send_email with recipient|subject|body format
+   - Use send_email with natural language description
 3. For tasks:
-   - Use create_task with task_name|due_date format
+   - Use create_task with natural language description
 4. For location searches:
    - Use search_location with location|query format
    - Use find_nearby_workout_locations with location|radius format
      Example: find_nearby_workout_locations: "One Infinite Loop, Cupertino, CA 95014|30"
 5. For sheets:
    - Use create_workout_tracker with title format
-   - Use add_workout_entry with spreadsheet_id|date|workout_type|duration|calories|notes format
-   - Use add_nutrition_entry with spreadsheet_id|date|meal|calories|protein|carbs|fat|notes format
+   - Use add_workout_entry with natural language description
+   - Use add_nutrition_entry with natural language description
    - Use get_sheet_data with spreadsheet_id|range_name format
 
 Example tool calls:
-- create_calendar_event: {{"summary": "Upper Body Workout", "start": {{"dateTime": "2025-06-18T10:00:00-07:00", "timeZone": "America/Los_Angeles"}}, "end": {{"dateTime": "2025-06-18T11:00:00-07:00", "timeZone": "America/Los_Angeles"}}, "description": "Focus on chest and shoulders", "location": "Gym"}}
-- get_calendar_events: ""
+- create_calendar_event: "schedule a weightlifting workout for tomorrow at 7pm"
+- get_calendar_events: "tomorrow"
 - delete_events_in_range: "2025-06-18T00:00:00-07:00|2025-06-18T23:59:59-07:00"
-- send_email: "coach@gym.com|Weekly Progress Update|Here's your progress report..."
-- create_task: "Track protein intake|2025-06-21"
+- send_email: "send a progress report to my coach"
+- create_task: "track protein intake due Friday"
 - search_location: "San Francisco|gym"
 - create_workout_tracker: "My Workout Tracker"
-- add_workout_entry: "spreadsheet_id|2025-06-17|Upper Body|60|300|Focus on chest and shoulders"
-- add_nutrition_entry: "spreadsheet_id|2025-06-17|Lunch|500|30|50|20|Post-workout meal"
+- add_workout_entry: "log today's upper body workout"
+- add_nutrition_entry: "log lunch with 500 calories"
 - get_sheet_data: "spreadsheet_id|Workouts!A1:E10"
 
 IMPORTANT: Only use tools when explicitly needed for the user's request. Do not make unnecessary tool calls.
 
 When the user asks to schedule a workout:
-1. ALWAYS use create_calendar_event with a properly formatted JSON object
-2. ALWAYS include timeZone in the start and end times
-3. ALWAYS set the end time to be 1 hour after the start time unless specified otherwise
-4. ALWAYS include a descriptive summary and location
-5. ALWAYS use the format: TOOL_CALL: create_calendar_event {{"summary": "...", "start": {{"dateTime": "...", "timeZone": "..."}}, "end": {{"dateTime": "...", "timeZone": "..."}}, "description": "...", "location": "..."}}"""
+1. ALWAYS use create_calendar_event with natural language description
+2. The tool will automatically convert it to proper JSON format
+3. Example: create_calendar_event: "schedule a weightlifting workout for tomorrow at 7pm at the gym"
+
+When the user shares a preference:
+1. Use add_preference_to_kg to remember it
+2. Example: add_preference_to_kg: "weightlifting"
+
+When the user wants to see their schedule:
+1. Use get_calendar_events with the timeframe
+2. Example: get_calendar_events: "tomorrow" or get_calendar_events: "this week" """
 
 def get_calendar_nlp_prompt(input_text: str, current_time: str) -> str:
     """

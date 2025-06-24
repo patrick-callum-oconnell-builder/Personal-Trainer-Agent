@@ -58,10 +58,9 @@ agent_personal_trainer/
 │   │   └── auth.py            # Google authentication
 │   ├── tools/                 # Agent tools
 │   │   ├── __init__.py
-│   │   ├── calendar_tools.py  # Calendar-related tools
-│   │   ├── maps_tools.py      # Maps and location tools
 │   │   ├── preferences_tools.py # User preference tools
-│   │   └── tool_manager.py    # Tool execution and management
+│   │   ├── personal_trainer_tool_manager.py # Tool execution and management
+│   │   └── tool_config.py    # Tool configuration and metadata
 │   └── tests/                 # Backend tests
 │       ├── unit/              # Unit tests
 │       └── integration/       # Integration tests

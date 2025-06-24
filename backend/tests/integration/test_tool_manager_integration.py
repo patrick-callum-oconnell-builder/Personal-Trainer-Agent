@@ -1,7 +1,7 @@
 import pytest
 import asyncio
 from unittest.mock import AsyncMock, MagicMock, patch
-from backend.tools.tool_manager import ToolManager
+from backend.tools.personal_trainer_tool_manager import PersonalTrainerToolManager
 from backend.personal_trainer_agent import PersonalTrainerAgent
 from backend.tests.integration.base_integration_test import BaseIntegrationTest
 

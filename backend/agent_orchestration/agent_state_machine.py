@@ -13,6 +13,7 @@ from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, Base
 from langchain_core.tools import Tool
 from backend.prompts import get_system_prompt
 from backend.utilities.time_formatting import extract_timeframe_from_text
+import asyncio
 
 logger = logging.getLogger(__name__)
 
@@ -166,15 +167,6 @@ class AgentStateMachine:
                 input_text = str(history)
                 chat_history = []
             
-            # Preference detection (integrated)
-            preference = await self.extract_preference_func(input_text)
-            if preference:
-                return {
-                    "type": "tool_call",
-                    "tool": "add_preference_to_kg",
-                    "args": preference
-                }
-
             # Get current time and date
             current_time = datetime.now().strftime("%I:%M %p")
             current_date = datetime.now().strftime("%A, %B %d, %Y")
@@ -193,7 +185,19 @@ class AgentStateMachine:
                 SystemMessage(content=system_prompt),
                 HumanMessage(content=user_prompt)
             ]
-            response = await self.llm.ainvoke(messages)
+            
+            # Add timeout to prevent hanging
+            try:
+                response = await asyncio.wait_for(
+                    self.llm.ainvoke(messages),
+                    timeout=15.0  # 15 second timeout
+                )
+            except asyncio.TimeoutError:
+                logger.error(f"LLM call timed out in decide_next_action for input: {input_text}")
+                return {
+                    "type": "message",
+                    "content": "I'm having trouble processing your request right now. Please try again in a moment."
+                }
             
             # Handle both string and AIMessage responses
             if isinstance(response, str):
@@ -209,34 +213,10 @@ class AgentStateMachine:
             
             response_text = response_text.strip()
             
-            # Check if the response contains a tool call
-            if "TOOL_CALL:" in response_text:
-                tool_call_line = response_text.split("TOOL_CALL:")[1].strip().split("\n")[0]
-                parts = tool_call_line.split(" ", 1)
-                if len(parts) >= 2:
-                    tool_name = parts[0].strip().rstrip(":")
-                    tool_args = parts[1].strip()
-                    # If get_calendar_events, override args with timeframe if present in user message
-                    if tool_name == "get_calendar_events":
-                        timeframe = self.extract_timeframe_func(input_text)
-                        if timeframe:
-                            tool_args = f'"{timeframe}"'
-                    logger.info(f"[TOOL_CALL] Tool selected: {tool_name}, Args: {tool_args}")
-                    return {
-                        "type": "tool_call",
-                        "tool": tool_name,
-                        "args": tool_args
-                    }
-            # Fallback: detect lines like 'find_nearby_workout_locations: ...' as tool calls
-            for tool in self.tools:
-                prefix = f"{tool.name}:"
-                if response_text.strip().startswith(prefix):
-                    tool_args = response_text.strip()[len(prefix):].strip()
-                    return {
-                        "type": "tool_call",
-                        "tool": tool.name,
-                        "args": tool_args
-                    }
+            # Try to extract tool call from the response
+            tool_call = await self._extract_tool_call(response_text, input_text)
+            if tool_call:
+                return tool_call
             
             # Handle regular messages
             return {
@@ -247,6 +227,154 @@ class AgentStateMachine:
         except Exception as e:
             logger.error(f"Error deciding next action: {e}")
             raise
+
+    async def _extract_tool_call(self, response_text: str, user_input: str) -> Optional[Dict[str, Any]]:
+        """
+        Extract tool call information from LLM response using multiple strategies.
+        
+        Args:
+            response_text: The LLM's response text
+            user_input: The original user input
+            
+        Returns:
+            Dict containing tool call details or None if no tool call found
+        """
+        try:
+            # Strategy 1: Check for explicit TOOL_CALL format
+            if "TOOL_CALL:" in response_text:
+                tool_call_line = response_text.split("TOOL_CALL:")[1].strip().split("\n")[0]
+                parts = tool_call_line.split(" ", 1)
+                if len(parts) >= 2:
+                    tool_name = parts[0].strip().rstrip(":")
+                    tool_args = parts[1].strip()
+                    return self._validate_and_format_tool_call(tool_name, tool_args, user_input)
+            
+            # Strategy 2: Check for tool name prefixes
+            for tool in self.tools:
+                prefix = f"{tool.name}:"
+                if response_text.strip().startswith(prefix):
+                    tool_args = response_text.strip()[len(prefix):].strip()
+                    return self._validate_and_format_tool_call(tool.name, tool_args, user_input)
+            
+            # Strategy 3: Use LLM to determine if a tool should be called
+            tool_call = await self._llm_tool_selection(response_text, user_input)
+            if tool_call:
+                return tool_call
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error extracting tool call: {e}")
+            return None
+
+    def _validate_and_format_tool_call(self, tool_name: str, tool_args: str, user_input: str) -> Dict[str, Any]:
+        """
+        Validate and format a tool call with appropriate arguments.
+        
+        Args:
+            tool_name: Name of the tool to call
+            tool_args: Arguments for the tool
+            user_input: Original user input for context
+            
+        Returns:
+            Dict containing validated tool call details
+        """
+        # Validate that the tool exists
+        if not any(tool.name == tool_name for tool in self.tools):
+            logger.warning(f"Tool '{tool_name}' not found in available tools")
+            return None
+        
+        # Special handling for specific tools
+        if tool_name == "get_calendar_events":
+            # Extract timeframe from user input if not provided
+            if not tool_args or tool_args.strip() == '""':
+                timeframe = self.extract_timeframe_func(user_input)
+                if timeframe:
+                    tool_args = f'"{timeframe}"'
+                else:
+                    tool_args = '""'
+        
+        logger.info(f"[TOOL_CALL] Tool selected: {tool_name}, Args: {tool_args}")
+        return {
+            "type": "tool_call",
+            "tool": tool_name,
+            "args": tool_args
+        }
+
+    async def _llm_tool_selection(self, response_text: str, user_input: str) -> Optional[Dict[str, Any]]:
+        """
+        Use LLM to determine if a tool should be called based on the response and user input.
+        
+        Args:
+            response_text: The LLM's response text
+            user_input: The original user input
+            
+        Returns:
+            Dict containing tool call details or None
+        """
+        try:
+            # Create a list of available tools with descriptions
+            tool_descriptions = []
+            for tool in self.tools:
+                tool_descriptions.append(f"- {tool.name}: {tool.description}")
+            
+            prompt = f"""Based on the user's request and the assistant's response, determine if a tool should be called.
+
+User request: {user_input}
+Assistant response: {response_text}
+
+Available tools:
+{chr(10).join(tool_descriptions)}
+
+If a tool should be called, respond with:
+TOOL_CALL: tool_name "arguments"
+
+If no tool should be called, respond with: NO_TOOL
+
+Examples:
+- User: "Schedule a workout for tomorrow at 7pm"
+- Assistant: "I'll schedule that for you."
+- Response: TOOL_CALL: create_calendar_event "schedule a workout for tomorrow at 7pm"
+
+- User: "I like weightlifting"
+- Assistant: "I'll remember that preference."
+- Response: TOOL_CALL: add_preference_to_kg "weightlifting"
+
+- User: "What's on my calendar tomorrow?"
+- Assistant: "Let me check your calendar."
+- Response: TOOL_CALL: get_calendar_events "tomorrow"
+
+Your response:"""
+            
+            messages = [
+                SystemMessage(content="You are an AI assistant that determines when tools should be called. Respond with either TOOL_CALL: tool_name \"arguments\" or NO_TOOL."),
+                HumanMessage(content=prompt)
+            ]
+            
+            # Add timeout to prevent hanging
+            try:
+                response = await asyncio.wait_for(
+                    self.llm.ainvoke(messages),
+                    timeout=10.0  # 10 second timeout
+                )
+            except asyncio.TimeoutError:
+                logger.error(f"LLM call timed out in _llm_tool_selection for user input: {user_input}")
+                return None
+            
+            content = response.content.strip() if hasattr(response, 'content') else str(response)
+            
+            if content.startswith("TOOL_CALL:"):
+                parts = content.split(" ", 2)
+                if len(parts) >= 3:
+                    tool_name = parts[1].strip()
+                    tool_args = parts[2].strip().strip('"')
+                    return self._validate_and_format_tool_call(tool_name, tool_args, user_input)
+            
+            return None
+            
+        except Exception as e:
+            logger.error(f"Error in LLM tool selection: {e}")
+            return None
 
     def _convert_message(self, msg):
         from langchain_core.messages import BaseMessage, HumanMessage, AIMessage

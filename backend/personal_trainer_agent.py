@@ -19,7 +19,7 @@ from backend.google_services import (
     GoogleTasksService,
 )
 from backend.utilities.time_formatting import extract_timeframe_from_text
-from backend.tools.tool_manager import ToolManager
+from backend.tools.personal_trainer_tool_manager import PersonalTrainerToolManager
 
 load_dotenv()
 logger = logging.getLogger(__name__)
@@ -45,13 +45,16 @@ class PersonalTrainerAgent(OrchestratedAgent):
         sheets_service: GoogleSheetsService,
         maps_service: GoogleMapsService = None
     ):
-        # Initialize the LLM
+        # Initialize the LLM with timeout configuration
         llm = ChatOpenAI(
             model=AGENT_CONFIG['model'],
             temperature=AGENT_CONFIG['temperature'],
+            timeout=30,  # 30 second timeout
+            max_retries=2,  # Retry up to 2 times
+            request_timeout=30,  # Request timeout
         )
         # Initialize the ToolManager with all services
-        tool_manager = ToolManager(
+        tool_manager = PersonalTrainerToolManager(
             calendar_service=calendar_service,
             gmail_service=gmail_service,
             tasks_service=tasks_service,
