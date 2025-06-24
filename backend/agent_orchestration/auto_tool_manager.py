@@ -243,112 +243,47 @@ class AutoToolManager:
             
             # Create a universal wrapper that handles any parameter pattern
             def create_universal_wrapper(service_method, method_metadata):
-                async def async_wrapper(**kwargs):
-                    return await self._call_service_method(service_method, method_metadata, kwargs)
-                
-                def sync_wrapper(**kwargs):
-                    return self._call_service_method(service_method, method_metadata, kwargs)
-                
-                # Return the appropriate wrapper based on whether the method is async
+                import logging
+                def sync_wrapper(args: dict):
+                    logger = logging.getLogger(__name__)
+                    logger.debug(f"Calling {service_method.__name__} with args type: {type(args)}, value: {args}")
+                    return self._call_service_method(service_method, method_metadata, args)
+                async def async_wrapper(args: dict):
+                    logger = logging.getLogger(__name__)
+                    logger.debug(f"Calling {service_method.__name__} with args type: {type(args)}, value: {args}")
+                    return await self._call_service_method(service_method, method_metadata, args)
                 if asyncio.iscoroutinefunction(service_method):
                     return async_wrapper
                 else:
                     return sync_wrapper
-            
-            # Create the universal wrapper function
             wrapped_method = create_universal_wrapper(method, metadata)
-            
             tool = Tool(
                 name=metadata.name,
                 func=wrapped_method,
                 description=metadata.description
             )
             tools.append(tool)
-        
         self.tools = tools
         return tools
-    
-    def _call_service_method(self, method: Callable, metadata: ToolMetadata, kwargs: Dict[str, Any]):
+
+    def _call_service_method(self, method: Callable, metadata: ToolMetadata, args: dict):
         """
         Universal method caller that adapts arguments to match the method signature.
-        
-        This method analyzes the target method's signature and adapts the incoming
-        keyword arguments to match the expected parameter pattern.
+        Always expects args as a dict.
         """
         import inspect
-        
-        # Get the method signature
         sig = inspect.signature(method)
         parameters = list(sig.parameters.values())
-        
-        # Skip 'self' parameter for instance methods
         if parameters and parameters[0].name == 'self':
             parameters = parameters[1:]
-        
         if not parameters:
-            # Method takes no parameters
             return method()
-        
         if len(parameters) == 1:
-            # Single parameter - could be a dictionary or any type
-            param = parameters[0]
-            param_name = param.name
-            
-            if param.annotation == inspect.Parameter.empty:
-                # No type annotation - try to be smart about it
-                if param_name.lower() in ['args', 'event_details', 'data', 'body', 'payload']:
-                    # Likely expects a dictionary
-                    return method(kwargs)
-                else:
-                    # Try to pass as single argument or unpack
-                    if param_name in kwargs:
-                        return method(kwargs[param_name])
-                    else:
-                        return method(kwargs)
-            else:
-                # Has type annotation
-                if hasattr(param.annotation, '__origin__') and param.annotation.__origin__ is dict:
-                    # Expects a dictionary
-                    return method(kwargs)
-                elif param.annotation == str and len(kwargs) == 1:
-                    # Expects a string - try to combine or use the first value
-                    first_key = next(iter(kwargs))
-                    if isinstance(kwargs[first_key], str):
-                        return method(kwargs[first_key])
-                    else:
-                        return method(str(kwargs[first_key]))
-                else:
-                    # Try to pass as single argument
-                    if param_name in kwargs:
-                        return method(kwargs[param_name])
-                    else:
-                        return method(kwargs)
+            # Single parameter: pass args directly
+            return method(args)
         else:
-            # Multiple parameters - use keyword arguments
-            # Filter kwargs to only include parameters that the method expects
-            filtered_kwargs = {}
-            for param in parameters:
-                if param.name in kwargs:
-                    filtered_kwargs[param.name] = kwargs[param.name]
-                elif param.default != inspect.Parameter.empty:
-                    # Use default value
-                    filtered_kwargs[param.name] = param.default
-                else:
-                    # Required parameter missing - try to provide a reasonable default
-                    if param.annotation == str:
-                        filtered_kwargs[param.name] = ""
-                    elif param.annotation == int:
-                        filtered_kwargs[param.name] = 0
-                    elif param.annotation == bool:
-                        filtered_kwargs[param.name] = False
-                    elif hasattr(param.annotation, '__origin__') and param.annotation.__origin__ is list:
-                        filtered_kwargs[param.name] = []
-                    elif hasattr(param.annotation, '__origin__') and param.annotation.__origin__ is dict:
-                        filtered_kwargs[param_name] = {}
-                    else:
-                        filtered_kwargs[param.name] = None
-            
-            return method(**filtered_kwargs)
+            # Multiple parameters: unpack args as kwargs
+            return method(**args)
     
     def get_tools_by_category(self, category: str) -> List[Tool]:
         """Get tools by category."""

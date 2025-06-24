@@ -3,17 +3,48 @@ Agent State Machine for Personal Trainer AI
 
 This module contains the state machine logic for orchestrating agent conversations,
 including decision-making, tool execution, and response generation.
+
+STATE MACHINE ARCHITECTURE:
+   - `AgentStateMachine` - Base class with all core functionality
+   - `AgentTransitionMachine` - Inherits from base, adds transition validation
+   - Uses `AgentState` enum for type safety
+   - `StateHandler` classes for each state (imported from state_handler.py)
+   - `StateTransitionGraph` for transition validation
+   - Context dictionary for state data
+
+   
+Example usage:
+```python
+# Basic state machine (no transition validation)
+state_machine = AgentStateMachine(llm, tools, extract_pref, extract_time)
+
+# Advanced state machine with transition validation
+transition_machine = AgentTransitionMachine(llm, tools, extract_pref, extract_time)
 """
 
 import json
 import logging
-from typing import List, Dict, Any, Optional, Union, AsyncGenerator
+from typing import List, Dict, Any, Optional, Union, AsyncGenerator, Callable
 from datetime import datetime, timezone as dt_timezone
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, BaseMessage
 from langchain_core.tools import Tool
 from backend.prompts import get_system_prompt
 from backend.utilities.time_formatting import extract_timeframe_from_text
+from backend.agent_orchestration.utilities import convert_natural_language_to_structured_args
 import asyncio
+import dateparser
+import inspect
+
+# Import state handling functionality from separate module
+from .state_handler import (
+    AgentState,
+    StateHandler,
+    ThinkingStateHandler,
+    ToolCallStateHandler,
+    SummarizeToolResultStateHandler,
+    ErrorStateHandler,
+    StateTransitionGraph
+)
 
 logger = logging.getLogger(__name__)
 
@@ -43,6 +74,14 @@ class AgentStateMachine:
         self.tools = tools
         self.extract_preference_func = extract_preference_func
         self.extract_timeframe_func = extract_timeframe_func
+        
+        # Initialize state handlers
+        self.state_handlers = {
+            AgentState.THINKING: ThinkingStateHandler(self),
+            AgentState.TOOL_CALL: ToolCallStateHandler(),
+            AgentState.SUMMARIZE_TOOL_RESULT: SummarizeToolResultStateHandler(),
+            AgentState.ERROR: ErrorStateHandler(),
+        }
     
     async def process_messages_stream(self, messages: List[BaseMessage], 
                                     execute_tool_func, 
@@ -51,16 +90,7 @@ class AgentStateMachine:
                                     agent_state=None) -> AsyncGenerator[str, None]:
         """
         Process messages and return a streaming response with multi-step tool execution.
-        
-        Args:
-            messages: List of messages to process
-            execute_tool_func: Function to execute tools
-            get_tool_confirmation_func: Function to get tool confirmation messages
-            summarize_tool_result_func: Function to summarize tool results
-            agent_state: Current state of the agent
-            
-        Yields:
-            str: Response messages
+        Handles errors by transitioning to ERROR state and yielding user-facing error messages.
         """
         try:
             # Convert messages to LangChain format
@@ -80,62 +110,42 @@ class AgentStateMachine:
                 yield "I need a user message to process."
                 return
             
-            # Multi-step process: decide action → confirm → execute → summarize
-            state = "AGENT_THINKING"
-            history = [user_message.content]
-            agent_action = None
-            tool_result = None
-            last_tool = None
-
-            while state != "DONE":
-                if state == "AGENT_THINKING":
-                    # Update state to thinking
-                    if agent_state:
-                        await agent_state.update(status="active")
-                    
-                    agent_action = await self.decide_next_action(history)
-                    if agent_action["type"] == "message":
-                        yield agent_action["content"]
-                        state = "DONE"
-                    elif agent_action["type"] == "tool_call":
-                        last_tool = agent_action["tool"]
-                        # Update state to awaiting tool
-                        if agent_state:
-                            await agent_state.update(status="awaiting_tool", last_tool_result=None)
-                        
-                        # Send confirmation message before calling tool
-                        confirmation_message = await get_tool_confirmation_func(last_tool, agent_action["args"])
-                        yield confirmation_message
-                        state = "AGENT_TOOL_CALL"
-                    else:
-                        state = "DONE"
-                elif state == "AGENT_TOOL_CALL":
-                    tool_result = await execute_tool_func(agent_action["tool"], agent_action["args"])
-                    # Update state with tool result
-                    if agent_state:
-                        await agent_state.update(last_tool_result=tool_result)
-                    
-                    # Add the tool result as a message in the history
-                    history.append(f"TOOL RESULT: {tool_result}")
-                    # Always go to summarize state after a tool call
-                    state = "AGENT_SUMMARIZE_TOOL_RESULT"
-                elif state == "AGENT_SUMMARIZE_TOOL_RESULT":
-                    # Always require the LLM to summarize the tool result for the user
-                    summary = await summarize_tool_result_func(last_tool, tool_result)
-                    if not summary:
-                        logger.error(f"LLM returned empty summary for tool {last_tool} and result {tool_result}")
-                        raise RuntimeError("LLM returned empty summary")
-                    
-                    # Update state to done
-                    if agent_state:
-                        await agent_state.update(status="done")
-                    
-                    yield summary
-                    state = "DONE"
-                
+            # Initialize context
+            context = {
+                'history': [user_message.content],
+                'agent_state': agent_state,
+                'execute_tool_func': execute_tool_func,
+                'get_tool_confirmation_func': get_tool_confirmation_func,
+                'summarize_tool_result_func': summarize_tool_result_func,
+                'agent_action': None,
+                'tool_result': None,
+                'last_tool': None,
+            }
+            
+            # Start with thinking state
+            current_state = AgentState.THINKING
+            
+            # State machine loop
+            while current_state != AgentState.DONE:
+                handler = self.state_handlers.get(current_state)
+                if not handler:
+                    logger.error(f"No handler found for state: {current_state}")
+                    yield f"Error: Unknown state {current_state}"
+                    current_state = AgentState.ERROR
+                    continue
+                try:
+                    next_state, response = await handler.handle(context)
+                    if response:
+                        yield response
+                    current_state = next_state
+                except Exception as e:
+                    logger.error(f"Error in state {current_state}: {e}")
+                    yield f"Sorry, something went wrong: {str(e)}"
+                    current_state = AgentState.ERROR
         except Exception as e:
             logger.error(f"Error in process_messages_stream: {e}")
-            yield f"Error processing messages: {str(e)}"
+            yield f"Sorry, something went wrong: {str(e)}"
+            current_state = AgentState.ERROR
 
     async def decide_next_action(self, history) -> Dict[str, Any]:
         """
@@ -230,76 +240,155 @@ class AgentStateMachine:
 
     async def _extract_tool_call(self, response_text: str, user_input: str) -> Optional[Dict[str, Any]]:
         """
-        Extract tool call information from LLM response using multiple strategies.
-        
-        Args:
-            response_text: The LLM's response text
-            user_input: The original user input
-            
-        Returns:
-            Dict containing tool call details or None if no tool call found
+        Extract tool call information and confirmation message from LLM response using multiple strategies.
+        Returns a dict with keys: type, tool, args, confirmation.
         """
         try:
             # Strategy 1: Check for explicit TOOL_CALL format
             if "TOOL_CALL:" in response_text:
-                tool_call_line = response_text.split("TOOL_CALL:")[1].strip().split("\n")[0]
+                before, after = response_text.split("TOOL_CALL:", 1)
+                confirmation = before.strip()
+                tool_call_line = after.strip().split("\n")[0]
                 parts = tool_call_line.split(" ", 1)
                 if len(parts) >= 2:
                     tool_name = parts[0].strip().rstrip(":")
                     tool_args = parts[1].strip()
-                    return self._validate_and_format_tool_call(tool_name, tool_args, user_input)
-            
+                    tool_call = await self._validate_and_format_tool_call(tool_name, tool_args, user_input)
+                    if tool_call:
+                        tool_call["confirmation"] = confirmation
+                    return tool_call
             # Strategy 2: Check for tool name prefixes
             for tool in self.tools:
                 prefix = f"{tool.name}:"
                 if response_text.strip().startswith(prefix):
+                    confirmation = response_text.split(prefix, 1)[0].strip()
                     tool_args = response_text.strip()[len(prefix):].strip()
-                    return self._validate_and_format_tool_call(tool.name, tool_args, user_input)
-            
+                    tool_call = await self._validate_and_format_tool_call(tool.name, tool_args, user_input)
+                    if tool_call:
+                        tool_call["confirmation"] = confirmation
+                    return tool_call
             # Strategy 3: Use LLM to determine if a tool should be called
             tool_call = await self._llm_tool_selection(response_text, user_input)
             if tool_call:
+                tool_call["confirmation"] = response_text.strip()
                 return tool_call
-            
             return None
-            
         except Exception as e:
             logger.error(f"Error extracting tool call: {e}")
             return None
 
-    def _validate_and_format_tool_call(self, tool_name: str, tool_args: str, user_input: str) -> Dict[str, Any]:
+    async def _validate_and_format_tool_call(self, tool_name: str, tool_args: str, user_input: str) -> Dict[str, Any]:
         """
-        Validate and format a tool call with appropriate arguments.
-        
-        Args:
-            tool_name: Name of the tool to call
-            tool_args: Arguments for the tool
-            user_input: Original user input for context
+        Generic validation and formatting of a tool call based on the tool's signature.
+        Uses the convert_natural_language_to_structured_args utility when needed.
+        Returns a dict with keys: type, tool, args.
+        """
+        try:
+            import inspect
+            import json
+            tool = None
+            for t in self.tools:
+                if t.name == tool_name:
+                    tool = t
+                    break
+            if not tool:
+                logger.error(f"Tool '{tool_name}' not found in available tools")
+                return None
             
-        Returns:
-            Dict containing validated tool call details
-        """
-        # Validate that the tool exists
-        if not any(tool.name == tool_name for tool in self.tools):
-            logger.warning(f"Tool '{tool_name}' not found in available tools")
-            return None
-        
-        # Special handling for specific tools
-        if tool_name == "get_calendar_events":
-            # Extract timeframe from user input if not provided
-            if not tool_args or tool_args.strip() == '""':
-                timeframe = self.extract_timeframe_func(user_input)
-                if timeframe:
-                    tool_args = f'"{timeframe}"'
+            sig = inspect.signature(tool.func)
+            params = [p for p in sig.parameters if p != 'self']
+            
+            # Try to parse tool_args as JSON/dict first
+            parsed_args = None
+            if isinstance(tool_args, dict):
+                parsed_args = tool_args
+            else:
+                try:
+                    parsed_args = json.loads(tool_args)
+                except Exception:
+                    # If it's not valid JSON, treat as natural language
+                    parsed_args = tool_args.strip()
+            
+            # Check if we need to convert natural language to structured args
+            needs_conversion = False
+            if isinstance(parsed_args, str) and len(params) > 1:
+                # Multiple parameters expected but we have a string - likely needs conversion
+                needs_conversion = True
+            elif isinstance(parsed_args, str) and len(params) == 1:
+                # Single parameter - check if it expects a dict
+                param_name = params[0]
+                param = sig.parameters[param_name]
+                if param.annotation in [dict, Dict, Any] or param.annotation == inspect.Parameter.empty:
+                    # Parameter expects a dict but we have a string - needs conversion
+                    needs_conversion = True
+            
+            if needs_conversion:
+                logger.debug(f"Converting natural language to structured args for tool '{tool_name}'")
+                try:
+                    # Build expected parameters dict for the utility function
+                    expected_parameters = {}
+                    for param_name in params:
+                        param = sig.parameters[param_name]
+                        param_info = {
+                            'type': param.annotation if param.annotation != inspect.Parameter.empty else Any,
+                            'required': param.default == inspect.Parameter.empty,
+                            'default': param.default if param.default != inspect.Parameter.empty else None
+                        }
+                        expected_parameters[param_name] = param_info
+                    
+                    # Use the utility function to convert natural language to structured args
+                    converted_args = await convert_natural_language_to_structured_args(
+                        self.llm, tool_name, parsed_args, expected_parameters
+                    )
+                    
+                    # Build the final args dict
+                    if len(params) == 1:
+                        param_name = params[0]
+                        args = {param_name: converted_args}
+                    else:
+                        args = converted_args
+                    
+                    return {
+                        "type": "tool_call",
+                        "tool": tool_name,
+                        "args": args
+                    }
+                except Exception as e:
+                    logger.error(f"Error converting natural language to structured args: {e}")
+                    # Fall back to original logic
+            
+            # Original logic for simple cases
+            if len(params) == 1:
+                param_name = params[0]
+                param = sig.parameters[param_name]
+                # If the param expects a dict, pass as dict if possible
+                if param.annotation in [dict, Dict, Any] or param.annotation == inspect.Parameter.empty:
+                    if isinstance(parsed_args, dict):
+                        args = {param_name: parsed_args}
+                    else:
+                        args = {param_name: parsed_args}
                 else:
-                    tool_args = '""'
-        
-        logger.info(f"[TOOL_CALL] Tool selected: {tool_name}, Args: {tool_args}")
-        return {
-            "type": "tool_call",
-            "tool": tool_name,
-            "args": tool_args
-        }
+                    args = {param_name: parsed_args}
+            elif len(params) > 1:
+                # If parsed_args is a dict, map keys to params
+                if isinstance(parsed_args, dict):
+                    args = {k: parsed_args.get(k, None) for k in params}
+                else:
+                    # Fallback: assign the string to the first param, rest get None
+                    args = {params[0]: parsed_args}
+                    for k in params[1:]:
+                        args[k] = None
+            else:
+                args = {}
+            
+            return {
+                "type": "tool_call",
+                "tool": tool_name,
+                "args": args
+            }
+        except Exception as e:
+            logger.error(f"Error validating tool call: {e}")
+            return None
 
     async def _llm_tool_selection(self, response_text: str, user_input: str) -> Optional[Dict[str, Any]]:
         """
@@ -310,65 +399,74 @@ class AgentStateMachine:
             user_input: The original user input
             
         Returns:
-            Dict containing tool call details or None
+            Dict containing tool call details or None if no tool call should be made
         """
         try:
-            # Create a list of available tools with descriptions
-            tool_descriptions = []
-            for tool in self.tools:
-                tool_descriptions.append(f"- {tool.name}: {tool.description}")
+            # Create a prompt for tool selection
+            tool_descriptions = "\n".join([
+                f"- {tool.name}: {tool.description}" for tool in self.tools
+            ])
             
-            prompt = f"""Based on the user's request and the assistant's response, determine if a tool should be called.
-
-User request: {user_input}
-Assistant response: {response_text}
-
-Available tools:
-{chr(10).join(tool_descriptions)}
-
-If a tool should be called, respond with:
-TOOL_CALL: tool_name "arguments"
-
-If no tool should be called, respond with: NO_TOOL
-
-Examples:
-- User: "Schedule a workout for tomorrow at 7pm"
-- Assistant: "I'll schedule that for you."
-- Response: TOOL_CALL: create_calendar_event "schedule a workout for tomorrow at 7pm"
-
-- User: "I like weightlifting"
-- Assistant: "I'll remember that preference."
-- Response: TOOL_CALL: add_preference_to_kg "weightlifting"
-
-- User: "What's on my calendar tomorrow?"
-- Assistant: "Let me check your calendar."
-- Response: TOOL_CALL: get_calendar_events "tomorrow"
-
-Your response:"""
+            prompt = f"""
+            Based on the user's input and the AI's response, determine if a tool should be called.
+            
+            User input: {user_input}
+            AI response: {response_text}
+            
+            Available tools:
+            {tool_descriptions}
+            
+            If a tool should be called, respond with:
+            TOOL_CALL: <tool_name> <arguments>
+            
+            If no tool should be called, respond with: NO_TOOL
+            
+            Examples:
+            1. User: "Schedule a workout for tomorrow"
+               AI: "I'll schedule a workout for you tomorrow."
+               Response: TOOL_CALL: create_calendar_event "schedule a workout for tomorrow"
+            
+            2. User: "What's on my calendar today?"
+               AI: "Let me check your calendar for today."
+               Response: TOOL_CALL: get_calendar_events "today"
+            
+            3. User: "Hello"
+               AI: "Hello! How can I help you today?"
+               Response: NO_TOOL
+            """
             
             messages = [
-                SystemMessage(content="You are an AI assistant that determines when tools should be called. Respond with either TOOL_CALL: tool_name \"arguments\" or NO_TOOL."),
+                SystemMessage(content="You are a tool selection assistant. Determine if a tool should be called based on the user input and AI response."),
                 HumanMessage(content=prompt)
             ]
             
-            # Add timeout to prevent hanging
             try:
                 response = await asyncio.wait_for(
                     self.llm.ainvoke(messages),
                     timeout=10.0  # 10 second timeout
                 )
             except asyncio.TimeoutError:
-                logger.error(f"LLM call timed out in _llm_tool_selection for user input: {user_input}")
+                logger.error("LLM tool selection timed out")
                 return None
             
-            content = response.content.strip() if hasattr(response, 'content') else str(response)
+            # Handle both string and AIMessage responses
+            if isinstance(response, str):
+                response_text = response
+            elif hasattr(response, 'content'):
+                response_text = response.content
+            else:
+                response_text = str(response)
             
-            if content.startswith("TOOL_CALL:"):
-                parts = content.split(" ", 2)
-                if len(parts) >= 3:
-                    tool_name = parts[1].strip()
-                    tool_args = parts[2].strip().strip('"')
-                    return self._validate_and_format_tool_call(tool_name, tool_args, user_input)
+            response_text = response_text.strip()
+            
+            # Check if a tool should be called
+            if "TOOL_CALL:" in response_text:
+                tool_call_line = response_text.split("TOOL_CALL:")[1].strip().split("\n")[0]
+                parts = tool_call_line.split(" ", 1)
+                if len(parts) >= 2:
+                    tool_name = parts[0].strip().rstrip(":")
+                    tool_args = parts[1].strip()
+                    return await self._validate_and_format_tool_call(tool_name, tool_args, user_input)
             
             return None
             
@@ -377,6 +475,7 @@ Your response:"""
             return None
 
     def _convert_message(self, msg):
+        """Convert various message formats to LangChain format."""
         from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
         if isinstance(msg, BaseMessage):
             return msg
@@ -390,4 +489,149 @@ Your response:"""
         elif isinstance(msg, str):
             return HumanMessage(content=msg)
         else:
-            return HumanMessage(content=str(msg)) 
+            return HumanMessage(content=str(msg))
+
+
+class AgentTransitionMachine(AgentStateMachine):
+    """
+    Advanced state machine with transition graph validation.
+    Inherits from AgentStateMachine and adds transition validation capabilities.
+    """
+    
+    def __init__(self, llm, tools: List[Tool], extract_preference_func, extract_timeframe_func):
+        """
+        Initialize the transition machine with transition graph support.
+        
+        Args:
+            llm: The language model for decision making and summarization
+            tools: List of available tools
+            extract_preference_func: Function to extract user preferences
+            extract_timeframe_func: Function to extract timeframes from text
+        """
+        # Call parent constructor
+        super().__init__(llm, tools, extract_preference_func, extract_timeframe_func)
+        
+        # Initialize transition graph
+        self.transition_graph = StateTransitionGraph()
+    
+    async def process_messages_stream(self, messages: List[BaseMessage], 
+                                    execute_tool_func, 
+                                    get_tool_confirmation_func,
+                                    summarize_tool_result_func,
+                                    agent_state=None) -> AsyncGenerator[str, None]:
+        """
+        Process messages using the advanced state machine with transition graph validation.
+        
+        Args:
+            messages: List of messages to process
+            execute_tool_func: Function to execute tools
+            get_tool_confirmation_func: Function to get tool confirmation messages
+            summarize_tool_result_func: Function to summarize tool results
+            agent_state: Current state of the agent
+            
+        Yields:
+            str: Response messages
+        """
+        try:
+            # Convert messages to LangChain format
+            input_messages = []
+            for msg in messages:
+                converted = self._convert_message(msg)
+                if converted:
+                    input_messages.append(converted)
+            
+            if not input_messages:
+                yield "I didn't receive any valid messages to process."
+                return
+            
+            # Get the last user message
+            user_message = input_messages[-1]
+            if not isinstance(user_message, HumanMessage):
+                yield "I need a user message to process."
+                return
+            
+            # Initialize context
+            context = {
+                'history': [user_message.content],
+                'agent_state': agent_state,
+                'execute_tool_func': execute_tool_func,
+                'get_tool_confirmation_func': get_tool_confirmation_func,
+                'summarize_tool_result_func': summarize_tool_result_func,
+                'agent_action': None,
+                'tool_result': None,
+                'last_tool': None,
+            }
+            
+            # Start with thinking state
+            current_state = AgentState.THINKING
+            
+            # State machine loop with transition graph validation
+            while current_state != AgentState.DONE:
+                # Get handler for current state
+                handler = self.state_handlers.get(current_state)
+                if not handler:
+                    logger.error(f"No handler found for state: {current_state}")
+                    yield f"Error: Unknown state {current_state}"
+                    break
+                
+                # Handle current state
+                try:
+                    next_state, response = await handler.handle(context)
+                    
+                    # Yield response if any
+                    if response:
+                        yield response
+                    
+                    # Use transition graph to validate transition
+                    event = self._determine_event(current_state, next_state, context)
+                    validated_next_state = self.transition_graph.get_next_state(current_state, event)
+                    
+                    if validated_next_state != next_state:
+                        logger.warning(f"Invalid transition from {current_state} to {next_state} via {event}")
+                        # Fall back to validated transition or DONE
+                        next_state = validated_next_state or AgentState.DONE
+                    
+                    # Transition to next state
+                    current_state = next_state
+                    
+                except Exception as e:
+                    logger.error(f"Error in state {current_state}: {e}")
+                    yield f"Error processing state {current_state}: {str(e)}"
+                    # Transition to DONE on error
+                    current_state = AgentState.DONE
+                
+        except Exception as e:
+            logger.error(f"Error in process_messages_stream: {e}")
+            yield f"Error processing messages: {str(e)}"
+    
+    def _determine_event(self, current_state: AgentState, next_state: AgentState, context: Dict[str, Any]) -> str:
+        """
+        Determine the event that caused the state transition.
+        
+        Args:
+            current_state: Current state
+            next_state: Next state
+            context: Current context
+            
+        Returns:
+            Event string
+        """
+        if current_state == AgentState.THINKING:
+            if next_state == AgentState.DONE:
+                return 'message_response'
+            elif next_state == AgentState.TOOL_CALL:
+                return 'tool_call'
+            else:
+                return 'error'
+        elif current_state == AgentState.TOOL_CALL:
+            if next_state == AgentState.SUMMARIZE_TOOL_RESULT:
+                return 'success'
+            else:
+                return 'error'
+        elif current_state == AgentState.SUMMARIZE_TOOL_RESULT:
+            if next_state == AgentState.DONE:
+                return 'success'
+            else:
+                return 'error'
+        else:
+            return 'error' 
