@@ -4,14 +4,16 @@ Unit tests for AgentStateMachine
 These tests fully mock all dependencies to test only the state transition logic.
 """
 
-import pytest
-import asyncio
-from unittest.mock import AsyncMock, MagicMock, patch
-from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
-from langchain_core.tools import Tool
-from backend.agent_orchestration.agent_state_machine import AgentStateMachine
-import json
 import ast
+import json
+
+import asyncio
+import pytest
+from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
+from langchain_core.tools import Tool
+from unittest.mock import AsyncMock, MagicMock, patch
+
+from backend.agent_orchestration.agent_state_machine import AgentStateMachine
 
 
 class TestAgentStateMachine:

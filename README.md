@@ -11,22 +11,25 @@ https://drive.google.com/file/d/10pUME3WR3DRclbFq2YwOQmOTCEIaif9s/view?usp=shari
 
 - **Real-time AI Conversation**: Chat with an intelligent personal trainer that understands context and provides personalized advice
 - **Google Services Integration**: 
-  - 📅 **Google Calendar**: Schedule and manage workouts automatically
+  - 📅 **Google Calendar**: Schedule and manage workouts automatically with conflict detection
   - 📧 **Gmail**: Send workout reminders and meal plans
   - 🗺️ **Google Maps**: Find nearby gyms, parks, and workout locations
   - 📁 **Google Drive**: Store and manage fitness documents and meal plans
   - 📊 **Google Sheets**: Track progress and maintain fitness logs
   - ✅ **Google Tasks**: Create and manage fitness-related tasks
   - 📱 **Google Fit**: Sync fitness data and track activities
-- **State-Based Agent Orchestration**: Intelligent decision-making for when to chat, use tools, or record preferences
+- **Advanced Agent Orchestration**: State-based agent with intelligent decision-making for when to chat, use tools, or record preferences
+- **Auto Tool Discovery**: Automatic discovery and registration of tools from Google services
+- **Generic NLP Processing**: Unified natural language to structured argument conversion for all tools
 - **Knowledge Graph**: Maintains context and user preferences across conversations
 - **Modern Web Interface**: Clean React/MUI frontend with real-time chat and knowledge graph visualization
+- **Conflict Detection**: Intelligent calendar conflict detection and resolution
 
 ## 🏗️ Architecture
 
 ### Tech Stack
 - **Backend**: Python FastAPI with async/await support
-- **Agent Framework**: LangGraph for state-based orchestration
+- **Agent Framework**: Custom state-based orchestration with LangGraph-inspired patterns
 - **AI/LLM**: OpenAI GPT models via LangChain
 - **Frontend**: React 18 with Material-UI (MUI)
 - **State Management**: Custom thread-safe state management with validation
@@ -36,31 +39,34 @@ https://drive.google.com/file/d/10pUME3WR3DRclbFq2YwOQmOTCEIaif9s/view?usp=shari
 ```
 agent_personal_trainer/
 ├── backend/                    # FastAPI backend application
-│   ├── agent.py               # Main agent orchestration logic
-│   ├── agent_state_machine.py # State machine for agent workflow
-│   ├── agent_state.py         # Thread-safe state management
-│   ├── dictionary_state.py    # Base state management class
-│   ├── knowledge_graph.py     # Knowledge graph implementation
-│   ├── tool_manager.py        # Tool execution and management
-│   ├── prompts.py             # AI prompts and system messages
-│   ├── time_formatting.py     # Time parsing utilities
-│   ├── auth.py                # Google authentication
-│   ├── main.py                # FastAPI application entry point
+│   ├── agent_orchestration/    # Agent orchestration and state management
+│   │   ├── agent_state_machine.py # State machine for agent workflow
+│   │   ├── agent_state.py         # Thread-safe state management
+│   │   ├── auto_tool_manager.py   # Automatic tool discovery and management
+│   │   └── orchestrated_agent.py  # Main agent orchestration logic
 │   ├── api/                   # API routes and endpoints
+│   │   └── routes.py          # FastAPI router and endpoints
 │   ├── google_services/       # Google API integrations
+│   │   ├── auth.py            # Google authentication
+│   │   ├── base.py            # Base service classes
 │   │   ├── calendar.py        # Google Calendar integration
 │   │   ├── gmail.py           # Gmail integration
 │   │   ├── maps.py            # Google Maps integration
 │   │   ├── drive.py           # Google Drive integration
 │   │   ├── sheets.py          # Google Sheets integration
 │   │   ├── tasks.py           # Google Tasks integration
-│   │   ├── fit.py             # Google Fit integration
-│   │   └── auth.py            # Google authentication
-│   ├── tools/                 # Agent tools
-│   │   ├── __init__.py
+│   │   └── fit.py             # Google Fit integration
+│   ├── tools/                 # Agent tools and management
+│   │   ├── personal_trainer_tool_manager.py # Main tool manager
 │   │   ├── preferences_tools.py # User preference tools
-│   │   ├── personal_trainer_tool_manager.py # Tool execution and management
-│   │   └── tool_config.py    # Tool configuration and metadata
+│   │   └── tool_config.py     # Tool configuration and metadata
+│   ├── utilities/             # Utility functions
+│   │   ├── auth.py            # Authentication utilities
+│   │   └── time_formatting.py # Time parsing utilities
+│   ├── knowledge_graph.py     # Knowledge graph implementation
+│   ├── prompts.py             # AI prompts and system messages
+│   ├── personal_trainer_agent.py # Main agent class
+│   ├── main.py                # FastAPI application entry point
 │   └── tests/                 # Backend tests
 │       ├── unit/              # Unit tests
 │       └── integration/       # Integration tests
@@ -68,7 +74,8 @@ agent_personal_trainer/
 │   ├── src/
 │   │   ├── components/        # React components
 │   │   │   ├── Chat.tsx       # Chat interface
-│   │   │   └── KnowledgeGraph.tsx # Knowledge graph visualization
+│   │   │   ├── KnowledgeGraph.tsx # Knowledge graph visualization
+│   │   │   └── StateHistory.tsx # State history display
 │   │   └── App.tsx            # Main application component
 │   └── package.json           # Frontend dependencies
 ├── tests/                     # End-to-end tests
@@ -79,7 +86,7 @@ agent_personal_trainer/
 
 ### Agent Architecture
 
-The AI agent uses a state machine with the following states:
+The AI agent uses a sophisticated state machine with the following states:
 - **Active**: Processing user input and making decisions
 - **Awaiting User**: Waiting for user input
 - **Awaiting Tool**: Executing a tool and waiting for results
@@ -88,9 +95,19 @@ The AI agent uses a state machine with the following states:
 
 The agent can:
 1. **Chat**: Provide fitness advice and answer questions
-2. **Use Tools**: Execute Google service integrations
+2. **Use Tools**: Execute Google service integrations with automatic discovery
 3. **Record Preferences**: Store user preferences in the knowledge graph
 4. **Manage State**: Maintain conversation context and user data
+5. **Resolve Conflicts**: Handle calendar conflicts intelligently
+
+### Auto Tool Discovery
+
+The system features an advanced auto-discovery mechanism that:
+- Automatically discovers tools from Google services
+- Registers tools with metadata-based and reflection-based strategies
+- Provides generic natural language to structured argument conversion
+- Validates tool signatures and arguments
+- Handles errors gracefully with detailed reporting
 
 ## 📋 Prerequisites
 
@@ -248,13 +265,6 @@ pytest --cov=backend --cov-report=html
 # Run all backend tests
 cd backend
 pytest
-
-# Run specific test categories
-pytest tests/unit/           # Unit tests
-pytest tests/integration/    # Integration tests
-
-# Run with coverage
-pytest --cov=backend tests/
 ```
 
 #### End-to-End Tests
@@ -308,8 +318,12 @@ npm run test:ui            # Run tests with UI
 ### Core Endpoints
 
 - `POST /api/chat` - Send messages to the AI personal trainer
+- `POST /api/chat/stream` - Stream responses from the AI personal trainer
 - `GET /api/health` - Check backend health status
 - `GET /api/docs` - Interactive API documentation (Swagger UI)
+- `GET /api/knowledge-graph` - Get current knowledge graph state
+- `GET /api/state-history` - Get agent state history
+- `POST /api/state-history/clear` - Clear agent state history
 
 ### Request/Response Examples
 
@@ -328,7 +342,8 @@ npm run test:ui            # Run tests with UI
 **Chat Response**:
 ```json
 {
-  "response": "I've scheduled a workout for tomorrow at 6 PM in your calendar. I've also sent you a reminder email with some workout suggestions based on your preferences."
+  "response": "I've scheduled a workout for tomorrow at 6 PM in your calendar. I've also sent you a reminder email with some workout suggestions based on your preferences.",
+  "type": "single"
 }
 ```
 
@@ -407,7 +422,7 @@ This project is licensed under the MIT License - see the LICENSE file for detail
 ## 🙏 Acknowledgments
 
 - Built with [FastAPI](https://fastapi.tiangolo.com/) for the backend
-- Powered by [LangGraph](https://github.com/langchain-ai/langgraph) for agent orchestration
+- Powered by [LangChain](https://github.com/langchain-ai/langchain) for AI/LLM integration
 - UI components from [Material-UI](https://mui.com/)
 - Google APIs for service integration
 

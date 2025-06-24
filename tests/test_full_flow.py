@@ -1,10 +1,12 @@
-import subprocess
-import time
-import requests
-import pytest
 import os
 import signal
+import subprocess
 import sys
+import time
+
+import pytest
+import requests
+
 
 @pytest.mark.e2e
 def test_basic_e2e():

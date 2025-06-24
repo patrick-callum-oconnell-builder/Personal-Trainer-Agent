@@ -1,5 +1,6 @@
 import os
 import sys
+
 sys.path.append(os.path.join(os.path.dirname(__file__), 'backend'))
 from auth import authenticate_all_services, check_authentication_status, ensure_adc
 
@@ -43,6 +44,7 @@ def main():
     if not all(check_authentication_status().values()):
         print("\n⚠ Some services failed to authenticate. Please check the error messages above.")
         print("You can run this script again to retry the authentication process.")
+
 
 if __name__ == "__main__":
     main() 

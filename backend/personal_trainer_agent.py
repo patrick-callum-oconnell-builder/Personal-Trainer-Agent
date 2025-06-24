@@ -1,8 +1,8 @@
 # Standard library imports
+import json
 import logging
 import os
 from typing import Any
-import json
 
 # Third-party imports
 from dotenv import load_dotenv
@@ -18,8 +18,8 @@ from backend.google_services import (
     GoogleSheetsService,
     GoogleTasksService,
 )
-from backend.utilities.time_formatting import extract_timeframe_from_text
 from backend.tools.personal_trainer_tool_manager import PersonalTrainerToolManager
+from backend.utilities.time_formatting import extract_timeframe_from_text
 
 load_dotenv()
 logger = logging.getLogger(__name__)

@@ -9,21 +9,22 @@ This script runs all tests in the project and generates detailed reports includi
 - Timestamped JSON reports
 """
 
-import os
-import sys
+import argparse
+import asyncio
 import json
+import os
+import re
+import subprocess
+import sys
 import time
 import traceback
-import subprocess
+import xml.etree.ElementTree as ET
 from datetime import datetime
 from pathlib import Path
 from typing import Dict, List, Any, Optional
-import pytest
 from unittest.mock import patch
-import asyncio
-import argparse
-import xml.etree.ElementTree as ET
-import re
+
+import pytest
 
 class TestRunner:
     """Comprehensive test runner for the entire project."""

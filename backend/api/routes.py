@@ -1,7 +1,13 @@
 import logging
-from fastapi import APIRouter, HTTPException, Request, BackgroundTasks, Header, WebSocket, WebSocketDisconnect
-from fastapi.middleware.cors import CORSMiddleware
+import os
+import json
+import traceback
+from typing import List, Dict, Any, Optional
+
+from fastapi import APIRouter, HTTPException, Request, BackgroundTasks, Header
 from fastapi.responses import JSONResponse, StreamingResponse
+from pydantic import BaseModel
+
 from backend.personal_trainer_agent import PersonalTrainerAgent
 from backend.google_services import (
     GoogleCalendarService,
@@ -12,13 +18,7 @@ from backend.google_services import (
     GoogleSheetsService,
     GoogleTasksService,
 )
-import os
-from pydantic import BaseModel
-from typing import List, Dict, Any, Optional
-from pydantic import validator
-import asyncio
-import json
-from backend.knowledge_graph import KnowledgeGraph, KNOWLEDGE_GRAPH_PROMPT
+from backend.knowledge_graph import KnowledgeGraph
 from backend.agent_orchestration import AgentState
 
 # Configure logger
@@ -164,7 +164,6 @@ async def chat(request: ChatRequest, background_tasks: BackgroundTasks, x_api_ke
             "type": "single"
         }
     except Exception as e:
-        import traceback
         logger.error(f"Error in /chat endpoint: {str(e)}", exc_info=True)
         logger.error(f"Traceback: {traceback.format_exc()}")
         for handler in logger.handlers:
@@ -301,7 +300,6 @@ async def chat_stream(request: ChatRequest, background_tasks: BackgroundTasks, x
 
         return StreamingResponse(stream_responses(), media_type="text/event-stream")
     except Exception as e:
-        import traceback
         logger.error(f"Error in /chat/stream endpoint: {str(e)}", exc_info=True)
         logger.error(f"Traceback: {traceback.format_exc()}")
         for handler in logger.handlers:

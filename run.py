@@ -1,13 +1,14 @@
-import subprocess
-import sys
+import logging
 import os
 import signal
-import time
-import logging
-from typing import Optional
+import subprocess
+import sys
 import threading
-import requests
+import time
 import traceback
+from typing import Optional
+
+import requests
 
 # Configure logging
 logging.basicConfig(
