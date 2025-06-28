@@ -170,22 +170,25 @@ def _get_tool_specific_guidance(tool_name: str) -> str:
     """Get tool-specific guidance for the LLM prompt."""
     guidance_map = {
         "create_calendar_event": """
-        For calendar events, extract the event details directly (not wrapped in a parameter):
-        - summary: The event title/description
-        - start: Start time in ISO format (YYYY-MM-DDTHH:MM:SS)
-        - end: End time in ISO format (YYYY-MM-DDTHH:MM:SS)
-        - description: Optional detailed description
-        - location: Optional location
+        For calendar events, wrap the event details in an "event_details" parameter:
+        - event_details: A JSON object containing:
+          - summary: The event title/description
+          - start: Start time in ISO format (YYYY-MM-DDTHH:MM:SS)
+          - end: End time in ISO format (YYYY-MM-DDTHH:MM:SS)
+          - description: Optional detailed description
+          - location: Optional location
         
         Example: "schedule a workout for tomorrow at 3pm" should become:
         {
-            "summary": "Workout",
-            "start": "2024-01-24T15:00:00",
-            "end": "2024-01-24T16:00:00",
-            "description": "Scheduled workout session"
+            "event_details": {
+                "summary": "Workout",
+                "start": "2024-01-24T15:00:00",
+                "end": "2024-01-24T16:00:00",
+                "description": "Scheduled workout session"
+            }
         }
         
-        Note: Do NOT wrap in an "event_details" parameter. Generate the event data directly.
+        Note: The event data MUST be wrapped in an "event_details" parameter.
         """,
         
         "send_email": """

@@ -254,7 +254,15 @@ class PersonalTrainerToolManager:
             if callable(tool.func):
                 result = await self._maybe_await(tool.func(**parsed_args))
                 logger.debug(f"Tool '{tool_name}' executed successfully")
-                return result
+                
+                # Summarize the result for user-friendly output
+                try:
+                    summarized_result = await self.summarize_tool_result(tool_name, result)
+                    return summarized_result
+                except Exception as e:
+                    logger.warning(f"Failed to summarize result for tool '{tool_name}': {e}")
+                    # Fall back to raw result if summarization fails
+                    return result
             else:
                 return f"Error: Tool '{tool_name}' is not callable."
                 
@@ -454,7 +462,21 @@ class PersonalTrainerToolManager:
 
     async def _resolve_calendar_conflict(self, conflict_data: Union[str, Dict[str, Any]]) -> str:
         """Resolve calendar conflicts using the calendar service."""
-        return await self.services['calendar'].resolve_conflict(conflict_data)
+        result = await self.services['calendar'].resolve_conflict(conflict_data)
+        
+        # If result is a dictionary, convert to a user-friendly string
+        if isinstance(result, dict):
+            if result.get('error'):
+                return f"Error resolving conflict: {result['error']}"
+            elif result.get('skipped'):
+                return result.get('message', 'Event creation skipped due to conflict.')
+            elif result.get('id'):  # Successfully created event
+                return f"Conflict resolved successfully. Event created: {result.get('summary', 'Untitled Event')}"
+            else:
+                return f"Conflict resolution completed: {result.get('message', 'Unknown result')}"
+        
+        # If it's already a string, return as-is
+        return str(result)
 
     def _get_fallback_summary(self, tool_name: str, tool_result: Any) -> str:
         """Generate a fallback summary when LLM summarization fails."""

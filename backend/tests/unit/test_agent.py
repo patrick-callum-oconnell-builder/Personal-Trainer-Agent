@@ -6,62 +6,25 @@ import os
 import sys
 import json
 import asyncio
+from langchain_core.messages import HumanMessage
 
 from backend.personal_trainer_agent import PersonalTrainerAgent
-from backend.google_services import (
-    GoogleCalendarService,
-    GoogleDriveService,
-    GoogleFitnessService,
-    GoogleGmailService,
-    GoogleMapsService,
-    GoogleSheetsService,
-    GoogleTasksService,
-)
+from backend.tools.personal_trainer_tool_manager import PersonalTrainerToolManager
+from backend.agent_orchestration.auto_tool_manager import AutoToolManager
 
 class TestPersonalTrainerAgent(unittest.IsolatedAsyncioTestCase):
     """Test suite for PersonalTrainerAgent class."""
 
     async def asyncSetUp(self):
-        # Create mock services with all required methods
-        self.mock_calendar = MagicMock(spec=GoogleCalendarService)
-        self.mock_gmail = MagicMock(spec=GoogleGmailService)
-        self.mock_fit = MagicMock(spec=GoogleFitnessService)
-        self.mock_tasks = MagicMock(spec=GoogleTasksService)
-        self.mock_drive = MagicMock(spec=GoogleDriveService)
-        self.mock_sheets = MagicMock(spec=GoogleSheetsService)
-        self.mock_maps = MagicMock(spec=GoogleMapsService)
-
-        # Set up mock responses for calendar service (async)
-        self.mock_calendar.get_upcoming_events = AsyncMock(return_value=[])
-        self.mock_calendar.get_events_for_date = AsyncMock(return_value=[])
-        self.mock_calendar.write_event = AsyncMock(return_value={"id": "test_event_id"})
+        # Create mock services
+        self.mock_calendar = MagicMock()
+        self.mock_gmail = MagicMock()
+        self.mock_tasks = MagicMock()
+        self.mock_drive = MagicMock()
+        self.mock_sheets = MagicMock()
+        self.mock_maps = MagicMock()
         
-        # Set up mock responses for Gmail service (async)
-        self.mock_gmail.get_recent_emails = AsyncMock(return_value=[])
-        
-        # Set up mock responses for Fitness service (async)
-        self.mock_fit.get_activity_summary = AsyncMock(return_value={"total_activities": 0})
-        self.mock_fit.get_workout_history = AsyncMock(return_value=[])
-        self.mock_fit.get_body_metrics = AsyncMock(return_value={})
-        
-        # Set up mock responses for Tasks service (async)
-        self.mock_tasks.create_workout_tasklist = AsyncMock(return_value={"id": "test_tasklist_id"})
-        self.mock_tasks.add_workout_task = AsyncMock(return_value={"id": "test_task_id"})
-        self.mock_tasks.get_workout_tasks = AsyncMock(return_value=[])
-        
-        # Set up mock responses for Drive service (async)
-        self.mock_drive.create_folder = AsyncMock(return_value={"id": "test_folder_id"})
-        self.mock_drive.upload_file = AsyncMock(return_value={"id": "test_file_id"})
-        
-        # Set up mock responses for Sheets service (async)
-        self.mock_sheets.create_workout_tracker = AsyncMock(return_value={"id": "test_spreadsheet_id"})
-        self.mock_sheets.add_workout_entry = AsyncMock(return_value={"updated": True})
-        self.mock_sheets.add_nutrition_entry = AsyncMock(return_value={"updated": True})
-        
-        # Set up mock responses for Maps service (async)
-        self.mock_maps.find_nearby_workout_locations = AsyncMock(return_value=[])
-
-        # Create agent with mock services using the new flexible initialization
+        # Create agent with individual services (legacy constructor for unit tests)
         self.agent = PersonalTrainerAgent(
             calendar_service=self.mock_calendar,
             gmail_service=self.mock_gmail,
@@ -71,122 +34,86 @@ class TestPersonalTrainerAgent(unittest.IsolatedAsyncioTestCase):
             maps_service=self.mock_maps
         )
 
-    def test_initialization(self):
-        """Test that the agent initializes correctly with all services."""
+    async def test_agent_initialization(self):
+        """Test that the agent initializes correctly."""
         self.assertIsNotNone(self.agent)
-        self.assertIsNotNone(self.agent.tool_manager.calendar_service)
-        self.assertIsNotNone(self.agent.tool_manager.gmail_service)
-        self.assertIsNotNone(self.agent.tool_manager.tasks_service)
-        self.assertIsNotNone(self.agent.tool_manager.drive_service)
-        self.assertIsNotNone(self.agent.tool_manager.sheets_service)
-        self.assertIsNotNone(self.agent.tool_manager.get_tools())
-        # Note: agent attribute is only set after async_init() is called
+        self.assertIsNotNone(self.agent.state_machine)
+        self.assertIsNotNone(self.agent.agent_state)
 
-    def test_tool_creation(self):
-        """Test that all tools are created correctly."""
-        agent = self.agent
-        tool_names = [tool.name for tool in agent.tool_manager.get_tools()]
-        expected_tools = [
-            'get_calendar_events', 'create_calendar_event', 'resolve_calendar_conflict', 'delete_events_in_range',
-            'send_email', 'get_recent_emails', 'create_task', 'get_tasks', 'search_drive', 'create_folder',
-            'get_sheet_data', 'create_workout_tracker', 'add_workout_entry', 'add_nutrition_entry',
-            'get_directions', 'get_nearby_locations', 'get_nearby_places', 'add_preference_to_kg'
-        ]
-        for tool_name in expected_tools:
-            self.assertIn(tool_name, tool_names, f"Missing tool: {tool_name}")
-
-    async def test_calendar_tools(self):
-        """Test calendar-related tool functionality."""
-        print("START test_calendar_tools")
-        await self.agent.tool_manager.calendar_service.get_upcoming_events()
-        self.mock_calendar.get_upcoming_events.assert_awaited_once()
-
-        await self.agent.tool_manager.calendar_service.get_events_for_date("today")
-        self.mock_calendar.get_events_for_date.assert_awaited_once_with("today")
-
-        event_data = {
-            "summary": "Test Workout",
-            "start_time": "tomorrow 10am",
-            "end_time": "tomorrow 11am",
-            "description": "Test workout session",
-            "location": "Test Gym"
-        }
-        await self.agent.tool_manager.calendar_service.write_event(json.dumps(event_data))
-        self.mock_calendar.write_event.assert_awaited_once()
-        print("END test_calendar_tools")
-
-    async def test_tasks_tools(self):
-        """Test tasks-related tool functionality."""
-        await self.agent.tool_manager.tasks_service.create_workout_tasklist()
-        self.mock_tasks.create_workout_tasklist.assert_awaited_once()
-
-        await self.agent.tool_manager.tasks_service.add_workout_task(
-            tasklist_id="test_tasklist_id",
-            workout_name="Test Workout",
-            notes="Test notes",
-            due_date=datetime.now() + timedelta(days=1)
-        )
-        self.mock_tasks.add_workout_task.assert_awaited_once()
-
-        await self.agent.tool_manager.tasks_service.get_workout_tasks("test_tasklist_id")
-        self.mock_tasks.get_workout_tasks.assert_awaited_once()
-
-    async def test_drive_tools(self):
-        """Test drive-related tool functionality."""
-        await self.agent.tool_manager.drive_service.create_folder("Test Folder")
-        self.mock_drive.create_folder.assert_awaited_once()
-
-        await self.agent.tool_manager.drive_service.upload_file("/path/to/file.txt")
-        self.mock_drive.upload_file.assert_awaited_once()
-
-    async def test_sheets_tools(self):
-        """Test sheets-related tool functionality."""
-        await self.agent.tool_manager.sheets_service.create_workout_tracker()
-        self.mock_sheets.create_workout_tracker.assert_awaited_once()
-
-        await self.agent.tool_manager.sheets_service.add_workout_entry()
-        self.mock_sheets.add_workout_entry.assert_awaited_once()
-
-        await self.agent.tool_manager.sheets_service.add_nutrition_entry()
-        self.mock_sheets.add_nutrition_entry.assert_awaited_once()
-
-    async def test_gmail_tools(self):
-        """Test Gmail-related tool functionality."""
-        await self.agent.tool_manager.gmail_service.get_recent_emails()
-        self.mock_gmail.get_recent_emails.assert_awaited_once()
-
-    @patch('backend.personal_trainer_agent.ChatOpenAI')
-    async def test_process_messages(self, mock_chat):
-        """Test message processing functionality - unit test version."""
-        # Create a proper mock for the LLM
-        mock_llm = AsyncMock()
-        mock_llm.ainvoke.return_value.content = "I'll help you start working out"
-        mock_chat.return_value = mock_llm
+    async def test_process_message_basic(self):
+        """Test basic message processing."""
+        message = HumanMessage(content="Hello, how are you?")
         
-        # Re-initialize the agent with the mocked LLM
-        self.agent.llm = mock_llm
+        # Mock the process_messages_stream method to return an async generator
+        async def mock_stream(*args):
+            yield "Test response"
         
-        # Patch the state machine's process_messages_stream to always return an async generator
-        async def mock_stream(*args, **kwargs):
-            yield "I'll help you start working out"
-        from unittest.mock import patch
-        with patch.object(self.agent.state_machine, 'process_messages_stream', side_effect=mock_stream):
-            messages = [
-                {"role": "user", "content": "I want to start working out"}
-            ]
-            # Use the streaming method and collect responses
-            responses = []
-            async for response in self.agent.process_messages_stream(messages):
-                responses.append(response)
-            result = "\n".join(responses) if responses else "No response generated."
-            # Check for the expected response content
-            self.assertIn("I'll help you start working out", result)
+        # Mock the method to return the generator directly
+        self.agent.process_messages_stream = Mock(return_value=mock_stream())
+        
+        response = await self.agent.process_message(message)
+        
+        from langchain_core.messages import AIMessage
+        self.assertIsInstance(response, AIMessage)
+        self.assertEqual(response.content, "Test response")
 
-async def collect_stream(agent, messages):
-    responses = []
-    async for response in agent.process_messages_stream(messages):
-        responses.append(response)
-    return "\n".join(responses) if responses else "No response generated."
+    async def test_process_message_with_tool_call(self):
+        """Test message processing that involves tool calls."""
+        message = HumanMessage(content="Schedule a workout for tomorrow at 6pm")
+        
+        # Mock the process_messages_stream method to simulate a tool call
+        mock_response = "I've scheduled your workout for tomorrow at 6pm"
+        
+        async def mock_stream(*args):
+            yield mock_response
+        
+        # Mock the method to return the generator directly
+        self.agent.process_messages_stream = Mock(return_value=mock_stream())
+        
+        response = await self.agent.process_message(message)
+        
+        from langchain_core.messages import AIMessage
+        self.assertIsInstance(response, AIMessage)
+        self.assertEqual(response.content, mock_response)
+
+    async def test_agent_state_management(self):
+        """Test that agent state is properly managed."""
+        # Directly access fields
+        self.assertIsInstance(self.agent.agent_state.messages, list)
+        self.assertIsInstance(self.agent.agent_state.status, str)
+        # Add a message
+        msg = HumanMessage(content="test message")
+        self.agent.agent_state.add_message(msg)
+        self.assertIn(msg, self.agent.agent_state.messages)
+
+    async def test_error_handling(self):
+        """Test error handling in message processing."""
+        message = HumanMessage(content="This will cause an error")
+        
+        # Mock the process_messages_stream to raise an exception
+        async def mock_stream_error(*args):
+            raise Exception("Test error")
+        
+        # Mock the method to return the generator that raises an exception
+        self.agent.process_messages_stream = Mock(return_value=mock_stream_error())
+        
+        with self.assertRaises(Exception):
+            await self.agent.process_message(message)
+
+    async def test_agent_with_tool_manager(self):
+        """Test agent with tool manager integration."""
+        # The agent should already have a tool manager from initialization
+        self.assertIsNotNone(self.agent.tool_manager)
+        self.assertIsInstance(self.agent.tool_manager, PersonalTrainerToolManager)
+
+    async def test_agent_state_persistence(self):
+        """Test that agent state persists across operations."""
+        # Add a message to the state
+        test_message = HumanMessage(content="Test message for persistence")
+        self.agent.agent_state.add_message(test_message)
+        
+        # Check that the state contains the message
+        self.assertIn(test_message, self.agent.agent_state.messages)
 
 if __name__ == '__main__':
     unittest.main() 

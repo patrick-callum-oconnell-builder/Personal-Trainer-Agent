@@ -3,14 +3,7 @@ import pytest
 import pytest_asyncio
 from datetime import datetime, timedelta
 from backend.personal_trainer_agent import PersonalTrainerAgent
-from backend.google_services import (
-    GoogleCalendarService,
-    GoogleDriveService,
-    GoogleGmailService,
-    GoogleMapsService,
-    GoogleSheetsService,
-    GoogleTasksService,
-)
+from backend.tools.personal_trainer_tool_manager import PersonalTrainerToolManager
 from dotenv import load_dotenv
 import os
 
@@ -22,31 +15,39 @@ async def agent():
     if not maps_api_key:
         raise ValueError("Missing required environment variable: GOOGLE_MAPS_API_KEY")
 
+    # Initialize services using the new architecture
+    from backend.api.routes import initialize_services
+    services = await initialize_services()
+    
+    # Create agent with individual services (agent creates its own tool manager internally)
     agent = PersonalTrainerAgent(
-        calendar_service=GoogleCalendarService(),
-        gmail_service=GoogleGmailService(),
-        tasks_service=GoogleTasksService(),
-        drive_service=GoogleDriveService(),
-        sheets_service=GoogleSheetsService(),
-        maps_service=GoogleMapsService(api_key=maps_api_key)
+        calendar_service=services['calendar'],
+        gmail_service=services['gmail'],
+        tasks_service=services['tasks'],
+        drive_service=services['drive'],
+        sheets_service=services['sheets'],
+        maps_service=services['maps']
     )
-    await agent.async_init()
     return agent
 
 @pytest.mark.asyncio
 async def test_agent_initialization(agent):
     """Test that the agent initializes properly with all required services."""
-    assert agent.calendar_service is not None
-    assert agent.gmail_service is not None
-    assert agent.tasks_service is not None
-    assert agent.drive_service is not None
-    assert agent.sheets_service is not None
-    assert agent.maps_service is not None
+    awaited_agent = await agent
+    assert awaited_agent.tool_manager is not None
+    assert awaited_agent.tool_manager.services is not None
+    assert 'calendar' in awaited_agent.tool_manager.services
+    assert 'gmail' in awaited_agent.tool_manager.services
+    assert 'tasks' in awaited_agent.tool_manager.services
+    assert 'drive' in awaited_agent.tool_manager.services
+    assert 'sheets' in awaited_agent.tool_manager.services
+    assert 'maps' in awaited_agent.tool_manager.services
 
 @pytest.mark.asyncio
 async def test_tool_creation(agent):
     """Test that all tools are created properly."""
-    tools = agent.tool_manager.get_tools()
+    awaited_agent = await agent
+    tools = awaited_agent.tool_manager.get_tools()
     assert tools is not None
     assert len(tools) > 0
     tool_names = [tool.name for tool in tools]
@@ -59,7 +60,8 @@ async def test_tool_creation(agent):
 @pytest.mark.asyncio
 async def test_agent_workflow_creation(agent):
     """Test that the agent workflow is created properly."""
-    workflow = await agent._create_agent_workflow()
+    awaited_agent = await agent
+    workflow = await awaited_agent._create_agent_workflow()
     assert workflow is not None
     assert hasattr(workflow, "model_name")
     assert hasattr(workflow, "temperature")
@@ -67,8 +69,9 @@ async def test_agent_workflow_creation(agent):
 
 @pytest.mark.asyncio
 async def collect_stream(agent, messages):
+    awaited_agent = await agent
     responses = []
-    async for response in agent.process_messages_stream(messages):
+    async for response in awaited_agent.process_messages_stream(messages):
         responses.append(response)
     return "\n".join(responses) if responses else "No response generated."
 

@@ -154,6 +154,19 @@ class AgentState(DictionaryState):
         logging.getLogger(__name__).info(f"State history updated. Total snapshots: {len(_state_history)}")
         logging.getLogger(__name__).debug(f"Current state: {snapshot}")
 
+    def add_message(self, message: BaseMessage):
+        """
+        Add a message to the conversation history.
+        
+        Args:
+            message (BaseMessage): The message to add to the conversation.
+        """
+        if not isinstance(message, BaseMessage):
+            raise ValueError("Message must be a BaseMessage instance")
+        
+        self.messages.append(message)
+        self.append_to_history()
+
     @classmethod
     def get_state_history(cls) -> List[Dict[str, Any]]:
         """Return the state history as a list of dicts."""

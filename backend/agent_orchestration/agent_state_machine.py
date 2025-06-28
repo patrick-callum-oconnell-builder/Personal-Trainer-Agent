@@ -5,14 +5,13 @@ This module contains the state machine logic for orchestrating agent conversatio
 including decision-making, tool execution, and response generation.
 
 STATE MACHINE ARCHITECTURE:
-   - `AgentStateMachine` - Base class with all core functionality
+   - `AgentStateMachine` - Uses AgentState as single source of truth
    - `AgentTransitionMachine` - Inherits from base, adds transition validation
    - Uses `AgentState` enum for type safety
    - `StateHandler` classes for each state (imported from state_handler.py)
    - `StateTransitionGraph` for transition validation
-   - Context dictionary for state data
+   - AgentState object for all conversation data
 
-   
 Example usage:
 ```python
 # Basic state machine (no transition validation)
@@ -20,6 +19,8 @@ state_machine = AgentStateMachine(llm, tools, extract_pref, extract_time)
 
 # Advanced state machine with transition validation
 transition_machine = AgentTransitionMachine(llm, tools, extract_pref, extract_time)
+```
+
 """
 
 import json
@@ -28,7 +29,6 @@ from typing import List, Dict, Any, Optional, Union, AsyncGenerator, Callable
 from datetime import datetime, timezone as dt_timezone
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage, BaseMessage
 from langchain_core.tools import Tool
-from backend.prompts import get_system_prompt
 from backend.utilities.time_formatting import extract_timeframe_from_text
 from backend.agent_orchestration.utilities import convert_natural_language_to_structured_args
 import asyncio
@@ -40,12 +40,13 @@ from .state_handler import (
     AgentState,
     StateHandler,
     ThinkingStateHandler,
+    ConfirmationStateHandler,
     ToolCallStateHandler,
     SummarizeToolResultStateHandler,
     ErrorStateHandler,
-    StateTransitionGraph,
-    ConfirmationStateHandler
+    StateTransitionGraph
 )
+from .agent_state import AgentState as AgentStateData
 
 logger = logging.getLogger(__name__)
 
@@ -54,11 +55,16 @@ class AgentStateMachine:
     """
     State machine for orchestrating agent conversations and tool execution.
     
+    This state machine uses AgentState as the single source of truth for all
+    conversation data. It focuses on state transitions while delegating data
+    management to the AgentState object.
+    
     The state machine follows this flow:
     1. AGENT_THINKING - Analyze input and decide next action
-    2. AGENT_TOOL_CALL - Execute tool if needed
-    3. AGENT_SUMMARIZE_TOOL_RESULT - Summarize tool results
-    4. DONE - Complete the conversation turn
+    2. AGENT_CONFIRMATION - Confirm tool execution (if needed)
+    3. AGENT_TOOL_CALL - Execute tool if needed
+    4. AGENT_SUMMARIZE_TOOL_RESULT - Summarize tool results
+    5. DONE - Complete the conversation turn
     """
     
     def __init__(self, llm, tools: List[Tool], extract_preference_func, extract_timeframe_func):
@@ -75,6 +81,7 @@ class AgentStateMachine:
         self.tools = tools
         self.extract_preference_func = extract_preference_func
         self.extract_timeframe_func = extract_timeframe_func
+        self.current_state = AgentState.THINKING  # Initialize with default state
         
         # Initialize state handlers
         self.state_handlers = {
@@ -89,40 +96,44 @@ class AgentStateMachine:
                                     execute_tool_func, 
                                     get_tool_confirmation_func,
                                     summarize_tool_result_func,
-                                    agent_state=None) -> AsyncGenerator[str, None]:
+                                    agent_state: AgentStateData) -> AsyncGenerator[str, None]:
         """
         Process messages and return a streaming response with multi-step tool execution.
-        Handles errors by transitioning to ERROR state and yielding user-facing error messages.
+        
+        This method uses the provided AgentState object as the single source of truth
+        for all conversation data. It focuses on state transitions while the AgentState
+        handles all data management.
+        
+        Args:
+            messages: List of messages to process
+            execute_tool_func: Function to execute tools
+            get_tool_confirmation_func: Function to get tool confirmation messages
+            summarize_tool_result_func: Function to summarize tool results
+            agent_state: AgentState object containing all conversation data
+            
+        Yields:
+            str: Response messages
         """
         try:
-            # Convert messages to LangChain format
-            input_messages = []
-            for msg in messages:
-                converted = self._convert_message(msg)
-                if converted:
-                    input_messages.append(converted)
+            # Update agent state with new messages
+            await agent_state.update(messages=messages, status="active")
             
-            if not input_messages:
+            # Get the last user message from agent state
+            if not agent_state.messages:
                 yield "I didn't receive any valid messages to process."
                 return
             
-            # Get the last user message
-            user_message = input_messages[-1]
-            if not isinstance(user_message, HumanMessage):
+            last_message = agent_state.messages[-1]
+            if not isinstance(last_message, HumanMessage):
                 yield "I need a user message to process."
                 return
             
-            # Initialize context
+            # Initialize minimal context for state handlers
             context = {
-                'history': [user_message.content],
-                'user_input': user_message.content,
                 'agent_state': agent_state,
                 'execute_tool_func': execute_tool_func,
                 'get_tool_confirmation_func': get_tool_confirmation_func,
                 'summarize_tool_result_func': summarize_tool_result_func,
-                'agent_action': None,
-                'tool_result': None,
-                'last_tool': None,
             }
             
             # Start with thinking state
@@ -136,6 +147,7 @@ class AgentStateMachine:
                     yield f"Error: Unknown state {current_state}"
                     current_state = AgentState.ERROR
                     continue
+                
                 try:
                     next_state, response = await handler.handle(context)
                     if response:
@@ -165,203 +177,229 @@ class AgentStateMachine:
                             current_state = next_state
                     else:
                         current_state = next_state
+                        
                 except Exception as e:
                     logger.error(f"Error in state {current_state}: {e}")
                     yield f"Sorry, something went wrong: {str(e)}"
                     current_state = AgentState.ERROR
+                    
         except Exception as e:
             logger.error(f"Error in process_messages_stream: {e}")
             yield f"Sorry, something went wrong: {str(e)}"
-            current_state = AgentState.ERROR
+            await agent_state.update(status="error")
 
-    async def decide_next_action(self, history) -> Dict[str, Any]:
+    async def decide_next_action(self, agent_state: AgentStateData) -> Dict[str, Any]:
         """
-        Decide the next action based on the conversation history.
+        Decide the next action based on the agent state.
+        
+        This method uses the AgentState object to get conversation history
+        instead of recontextualizing the data.
         
         Args:
-            history: Conversation history
+            agent_state: AgentState object containing conversation data
             
         Returns:
             Dict containing action type and details
         """
         try:
-            # Convert history to the format expected by the agent
-            if isinstance(history, list):
-                # Get the last message's content
-                last_message = history[-1]
-                if hasattr(last_message, 'content'):
-                    input_text = last_message.content
-                else:
-                    input_text = str(last_message)
-                # Get previous messages for chat history
-                chat_history = []
-                for msg in history[:-1]:
-                    if hasattr(msg, 'content'):
-                        chat_history.append(msg.content)
-                    else:
-                        chat_history.append(str(msg))
-            else:
-                input_text = str(history)
-                chat_history = []
+            # Get conversation history from agent state
+            if not agent_state.messages:
+                return {"type": "message", "content": "I don't have any conversation history to work with."}
             
-            # Get current time and date
-            current_time = datetime.now().strftime("%I:%M %p")
-            current_date = datetime.now().strftime("%A, %B %d, %Y")
-
-            # Create the system prompt with tool descriptions
-            system_prompt = get_system_prompt(self.tools, current_time, current_date)
-
-            # Create the prompt with the full conversation history
-            user_prompt = f"Conversation history:\n"
-            for msg in chat_history:
-                user_prompt += f"{msg}\n"
-            user_prompt += f"\nUser's latest message: {input_text}\n\nWhat should I do next?"
-
-            # Get the LLM's response using proper message objects
-            messages = [
-                SystemMessage(content=system_prompt),
-                HumanMessage(content=user_prompt)
-            ]
+            # Get the last user message
+            last_message = agent_state.messages[-1]
+            if not isinstance(last_message, HumanMessage):
+                return {"type": "message", "content": "I need a user message to process."}
             
-            # Add timeout to prevent hanging
+            user_input = last_message.content
+            
+            # Create conversation history for LLM
+            conversation_history = []
+            for msg in agent_state.messages:
+                if isinstance(msg, HumanMessage):
+                    conversation_history.append(f"User: {msg.content}")
+                elif isinstance(msg, AIMessage):
+                    conversation_history.append(f"Assistant: {msg.content}")
+            
+            # Build the prompt for decision making
+            tools_description = "\n".join([f"- {tool.name}: {tool.description}" for tool in self.tools])
+            
+            prompt = f"""You are a helpful personal trainer AI assistant. You have access to the following tools:
+
+{tools_description}
+
+Current time: {datetime.now().strftime('%I:%M %p')}
+Current date: {datetime.now().strftime('%A, %B %d, %Y')}
+
+IMPORTANT RULES:
+1. ONLY use tools when explicitly needed for the user's request
+2. For calendar events:
+   - ONLY use create_calendar_event when the user explicitly wants to schedule something
+   - ONLY use get_calendar_events when the user asks to see their schedule
+   - ONLY use delete_events_in_range when the user wants to clear their calendar
+   - If the user asks to see their schedule, list events only for the requested time frame (e.g., 'this week', 'next week', 'today'). Do NOT schedule a new event unless explicitly requested.
+3. For emails:
+   - ONLY use send_email when the user wants to send a message
+4. For tasks:
+   - ONLY use create_task when the user wants to create a task
+5. For location searches:
+   - ONLY use search_location when the user wants to find a place
+6. For sheets:
+   - ONLY use create_workout_tracker when the user wants to create a new workout tracking spreadsheet
+   - ONLY use add_workout_entry when the user wants to log a workout
+   - ONLY use add_nutrition_entry when the user wants to log nutrition information
+   - ONLY use get_sheet_data when the user wants to view sheet data
+
+When using tools:
+1. For calendar events:
+   - Use create_calendar_event with natural language description (e.g., "schedule a workout for tomorrow at 7pm")
+   - Use get_calendar_events with timeframe (e.g., "tomorrow", "this week")
+   - Use delete_events_in_range with start_time|end_time format
+2. For emails:
+   - Use send_email with natural language description
+3. For tasks:
+   - Use create_task with natural language description
+4. For location searches:
+   - Use search_location with location|query format
+   - Use find_nearby_workout_locations with location|radius format
+     Example: find_nearby_workout_locations: "One Infinite Loop, Cupertino, CA 95014|30"
+5. For sheets:
+   - Use create_workout_tracker with title format
+   - Use add_workout_entry with natural language description
+   - Use add_nutrition_entry with natural language description
+   - Use get_sheet_data with spreadsheet_id|range_name format
+
+Example tool calls:
+- create_calendar_event: "schedule a weightlifting workout for tomorrow at 7pm"
+- get_calendar_events: "tomorrow"
+- delete_events_in_range: "2025-06-18T00:00:00-07:00|2025-06-18T23:59:59-07:00"
+- send_email: "send a progress report to my coach"
+- create_task: "track protein intake due Friday"
+- search_location: "San Francisco|gym"
+- create_workout_tracker: "My Workout Tracker"
+- add_workout_entry: "log today's upper body workout"
+- add_nutrition_entry: "log lunch with 500 calories"
+- get_sheet_data: "spreadsheet_id|Workouts!A1:E10"
+
+IMPORTANT: Only use tools when explicitly needed for the user's request. Do not make unnecessary tool calls.
+
+When the user asks to schedule a workout:
+1. ALWAYS use create_calendar_event with natural language description
+2. The tool will automatically convert it to proper JSON format
+3. Example: create_calendar_event: "schedule a weightlifting workout for tomorrow at 7pm at the gym"
+
+When the user shares a preference:
+1. Use add_preference_to_kg to remember it
+2. Example: add_preference_to_kg: "weightlifting"
+
+When the user wants to see their schedule:
+1. Use get_calendar_events with the timeframe
+2. Example: get_calendar_events: "tomorrow" or get_calendar_events: "this week"
+
+Conversation history:
+{chr(10).join(conversation_history)}
+
+What should I do next? Respond with either:
+RESPONSE: <your response message>
+or
+TOOL: <tool_name>
+ARGS: <tool_arguments>"""
+
+            # Make LLM call with timeout
             try:
                 response = await asyncio.wait_for(
-                    self.llm.ainvoke(messages),
-                    timeout=15.0  # 15 second timeout
+                    self.llm.ainvoke([SystemMessage(content=prompt)]),
+                    timeout=15.0
                 )
+                response_text = response.content.strip()
             except asyncio.TimeoutError:
-                logger.error(f"LLM call timed out in decide_next_action for input: {input_text}")
+                logger.error(f"LLM call timed out in decide_next_action for input: {user_input}")
+                return {"type": "message", "content": "I'm having trouble processing your request right now. Please try again in a moment."}
+            
+            # Parse the response
+            if response_text.startswith("RESPONSE:"):
+                content = response_text[9:].strip()
+                return {"type": "message", "content": content}
+            elif response_text.startswith("TOOL:"):
+                # Extract tool name and args
+                lines = response_text.split('\n')
+                tool_line = lines[0]
+                args_line = lines[1] if len(lines) > 1 else ""
+                
+                tool_name = tool_line[5:].strip()
+                tool_args = args_line[5:].strip() if args_line.startswith("ARGS:") else ""
+                
+                # Validate tool exists
+                tool_names = [tool.name for tool in self.tools]
+                if tool_name not in tool_names:
+                    return {"type": "message", "content": f"I don't have access to the '{tool_name}' tool. Available tools: {', '.join(tool_names)}"}
+                
                 return {
-                    "type": "message",
-                    "content": "I'm having trouble processing your request right now. Please try again in a moment."
+                    "type": "tool_call",
+                    "tool": tool_name,
+                    "args": tool_args
                 }
-            
-            # Handle both string and AIMessage responses
-            if isinstance(response, str):
-                response_text = response
-            elif hasattr(response, 'content'):
-                response_text = response.content
             else:
-                response_text = str(response)
-            
-            if not response_text or not response_text.strip():
-                logger.error(f"LLM returned empty response for input: {input_text}")
-                raise RuntimeError("LLM returned empty response.")
-            
-            response_text = response_text.strip()
-            
-            # Try to extract tool call from the response
-            tool_call = await self._extract_tool_call(response_text, input_text)
-            if tool_call:
-                return tool_call
-            
-            # Handle regular messages
-            return {
-                "type": "message",
-                "content": response_text
-            }
+                # Fallback: treat as a message response
+                return {"type": "message", "content": response_text}
                 
         except Exception as e:
-            logger.error(f"Error deciding next action: {e}")
-            raise
+            logger.error(f"Error in decide_next_action: {e}")
+            return {"type": "message", "content": f"Sorry, something went wrong while deciding next action: {str(e)}"}
 
-    async def _extract_tool_call(self, response_text: str, user_input: str) -> Optional[Dict[str, Any]]:
+    async def _validate_and_format_tool_call(self, tool_name: str, tool_args: Any, user_input: str) -> Dict[str, Any]:
         """
-        Extract tool call information from LLM response using LLM-based tool selection.
-        Returns a dict with keys: type, tool, args, confirmation.
+        Validate and format a tool call for execution.
+        
+        This method handles the conversion of tool arguments to the proper format
+        expected by the tool function. It uses the convert_natural_language_to_structured_args
+        utility when needed for complex parameter conversion.
+        
+        Args:
+            tool_name: Name of the tool to call
+            tool_args: Arguments for the tool (can be string, dict, or other types)
+            user_input: Original user input (for context)
+            
+        Returns:
+            Dict with tool call information or None if validation fails
         """
         try:
-            # Use LLM to determine if a tool should be called
-            tool_call = await self._llm_tool_selection(response_text, user_input)
-            if tool_call:
-                # Don't include the tool call format in the confirmation message
-                # The confirmation will be handled by the ConfirmationStateHandler
-                tool_call["confirmation"] = None
-                return tool_call
-            return None
-        except Exception as e:
-            logger.error(f"Error extracting tool call: {e}")
-            return None
-
-    async def _validate_and_format_tool_call(self, tool_name: str, tool_args: str, user_input: str) -> Dict[str, Any]:
-        """
-        Generic validation and formatting of a tool call based on the tool's signature.
-        Uses the convert_natural_language_to_structured_args utility when needed.
-        Returns a dict with keys: type, tool, args.
-        """
-        try:
-            import inspect
-            import json
+            # Find the tool
             tool = None
             for t in self.tools:
                 if t.name == tool_name:
                     tool = t
                     break
+            
             if not tool:
-                logger.error(f"Tool '{tool_name}' not found in available tools")
+                logger.error(f"Tool '{tool_name}' not found")
                 return None
             
+            # Get tool function signature
             sig = inspect.signature(tool.func)
-            params = [p for p in sig.parameters if p != 'self']
+            params = list(sig.parameters.keys())
             
-            # Try to parse tool_args as JSON/dict first
-            parsed_args = None
-            if isinstance(tool_args, dict):
-                parsed_args = tool_args
-            else:
-                try:
-                    parsed_args = json.loads(tool_args)
-                except Exception:
-                    # If it's not valid JSON, treat as natural language
-                    parsed_args = tool_args.strip()
+            # Parse arguments
+            parsed_args = tool_args
             
-            # Check if we need to convert natural language to structured args
-            needs_conversion = False
-            if isinstance(parsed_args, str) and len(params) > 1:
-                # Multiple parameters expected but we have a string - likely needs conversion
-                needs_conversion = True
-            elif isinstance(parsed_args, str) and len(params) == 1:
-                # Single parameter - check if it expects a dict
-                param_name = params[0]
-                param = sig.parameters[param_name]
-                if param.annotation in [dict, Dict, Any] or param.annotation == inspect.Parameter.empty:
-                    # Parameter expects a dict but we have a string - needs conversion
-                    needs_conversion = True
-            
-            if needs_conversion:
-                logger.debug(f"Converting natural language to structured args for tool '{tool_name}'")
-                try:
-                    # Build expected parameters dict for the utility function
-                    expected_parameters = {}
-                    for param_name in params:
-                        param = sig.parameters[param_name]
-                        param_info = {
-                            'type': param.annotation if param.annotation != inspect.Parameter.empty else Any,
-                            'required': param.default == inspect.Parameter.empty,
-                            'default': param.default if param.default != inspect.Parameter.empty else None
-                        }
-                        expected_parameters[param_name] = param_info
-                    
-                    # Use the utility function to convert natural language to structured args
-                    converted_args = await convert_natural_language_to_structured_args(
-                        self.llm, tool_name, parsed_args, expected_parameters
-                    )
-                    
-                    # Build the final args dict
-                    if len(params) == 1:
-                        param_name = params[0]
-                        args = {param_name: converted_args}
-                    else:
-                        args = converted_args
-                    
-                    return {
-                        "type": "tool_call",
-                        "tool": tool_name,
-                        "args": args
+            # Use the utility function for complex parameter conversion
+            try:
+                # Get expected parameters for the tool
+                expected_parameters = {}
+                for param_name in params:
+                    param = sig.parameters[param_name]
+                    expected_parameters[param_name] = {
+                        'type': param.annotation if param.annotation != inspect.Parameter.empty else Any,
+                        'required': param.default == inspect.Parameter.empty,
+                        'default': param.default if param.default != inspect.Parameter.empty else None
                     }
-                except Exception as e:
-                    logger.error(f"Error converting natural language to structured args: {e}")
-                    # Fall back to original logic
+                
+                parsed_args = await convert_natural_language_to_structured_args(
+                    self.llm, tool_name, tool_args, expected_parameters
+                )
+            except Exception as e:
+                logger.error(f"Error converting natural language to structured args: {e}")
+                # Fall back to original logic
             
             # Original logic for simple cases
             if len(params) == 1:
@@ -396,130 +434,38 @@ class AgentStateMachine:
             logger.error(f"Error validating tool call: {e}")
             return None
 
-    async def _llm_tool_selection(self, response_text: str, user_input: str) -> Optional[Dict[str, Any]]:
+    def _convert_message(self, msg) -> Optional[BaseMessage]:
         """
-        Use LLM to determine if a tool should be called based on the response and user input.
+        Convert a message to LangChain format.
         
         Args:
-            response_text: The LLM's response text
-            user_input: The original user input
+            msg: Message to convert
             
         Returns:
-            Dict containing tool call details or None if no tool call should be made
+            Converted message or None if conversion fails
         """
         try:
-            # First, check if the response already contains a tool call in the expected format
-            # Look for patterns like: tool_name: "arguments" or TOOL_CALL: tool_name arguments
-            for tool in self.tools:
-                # Check for tool_name: "arguments" format
-                prefix = f"{tool.name}:"
-                if prefix in response_text:
-                    # Extract the tool call
-                    parts = response_text.split(prefix, 1)
-                    if len(parts) >= 2:
-                        tool_args = parts[1].strip()
-                        # Remove quotes if present
-                        if tool_args.startswith('"') and tool_args.endswith('"'):
-                            tool_args = tool_args[1:-1]
-                        return await self._validate_and_format_tool_call(tool.name, tool_args, user_input)
-            
-            # Check for TOOL_CALL: format as fallback
-            if "TOOL_CALL:" in response_text:
-                tool_call_line = response_text.split("TOOL_CALL:")[1].strip().split("\n")[0]
-                parts = tool_call_line.split(" ", 1)
-                if len(parts) >= 2:
-                    tool_name = parts[0].strip().rstrip(":")
-                    tool_args = parts[1].strip()
-                    return await self._validate_and_format_tool_call(tool_name, tool_args, user_input)
-            
-            # If no explicit tool call found, use LLM to determine if one should be made
-            tool_descriptions = "\n".join([
-                f"- {tool.name}: {tool.description}" for tool in self.tools
-            ])
-            
-            prompt = f"""
-            Based on the user's input and the AI's response, determine if a tool should be called.
-            
-            User input: {user_input}
-            AI response: {response_text}
-            
-            Available tools:
-            {tool_descriptions}
-            
-            If a tool should be called, respond with:
-            TOOL_CALL: <tool_name> <arguments>
-            
-            If no tool should be called, respond with: NO_TOOL
-            
-            Examples:
-            1. User: "Schedule a workout for tomorrow"
-               AI: "I'll schedule a workout for you tomorrow."
-               Response: TOOL_CALL: create_calendar_event "schedule a workout for tomorrow"
-            
-            2. User: "What's on my calendar today?"
-               AI: "Let me check your calendar for today."
-               Response: TOOL_CALL: get_calendar_events "today"
-            
-            3. User: "Hello"
-               AI: "Hello! How can I help you today?"
-               Response: NO_TOOL
-            """
-            
-            messages = [
-                SystemMessage(content="You are a tool selection assistant. Determine if a tool should be called based on the user input and AI response."),
-                HumanMessage(content=prompt)
-            ]
-            
-            try:
-                response = await asyncio.wait_for(
-                    self.llm.ainvoke(messages),
-                    timeout=10.0  # 10 second timeout
-                )
-            except asyncio.TimeoutError:
-                logger.error("LLM tool selection timed out")
+            if isinstance(msg, BaseMessage):
+                return msg
+            elif isinstance(msg, dict):
+                role = msg.get('role', '')
+                content = msg.get('content', '')
+                if role == 'user':
+                    return HumanMessage(content=content)
+                elif role == 'assistant':
+                    return AIMessage(content=content)
+                elif role == 'system':
+                    return SystemMessage(content=content)
+                else:
+                    return BaseMessage(content=content)
+            elif isinstance(msg, str):
+                return HumanMessage(content=msg)
+            else:
+                logger.warning(f"Unknown message format: {type(msg)}")
                 return None
-            
-            # Handle both string and AIMessage responses
-            if isinstance(response, str):
-                response_text = response
-            elif hasattr(response, 'content'):
-                response_text = response.content
-            else:
-                response_text = str(response)
-            
-            response_text = response_text.strip()
-            
-            # Check if a tool should be called
-            if "TOOL_CALL:" in response_text:
-                tool_call_line = response_text.split("TOOL_CALL:")[1].strip().split("\n")[0]
-                parts = tool_call_line.split(" ", 1)
-                if len(parts) >= 2:
-                    tool_name = parts[0].strip().rstrip(":")
-                    tool_args = parts[1].strip()
-                    return await self._validate_and_format_tool_call(tool_name, tool_args, user_input)
-            
-            return None
-            
         except Exception as e:
-            logger.error(f"Error in LLM tool selection: {e}")
+            logger.error(f"Error converting message: {e}")
             return None
-
-    def _convert_message(self, msg):
-        """Convert various message formats to LangChain format."""
-        from langchain_core.messages import BaseMessage, HumanMessage, AIMessage
-        if isinstance(msg, BaseMessage):
-            return msg
-        if isinstance(msg, dict):
-            if msg.get('role') == 'user':
-                return HumanMessage(content=msg.get('content', ''))
-            elif msg.get('role') == 'assistant':
-                return AIMessage(content=msg.get('content', ''))
-            else:
-                return HumanMessage(content=str(msg))
-        elif isinstance(msg, str):
-            return HumanMessage(content=msg)
-        else:
-            return HumanMessage(content=str(msg))
 
     def _determine_event(self, current_state: AgentState, next_state: AgentState, context: Dict[str, Any]) -> str:
         """
@@ -542,13 +488,14 @@ class AgentStateMachine:
                 return 'error'
         elif current_state == AgentState.CONFIRMATION:
             # Check user input for confirmation or cancellation
-            user_input = context.get('user_input', '').lower()
-            if 'yes' in user_input or 'confirm' in user_input or 'sure' in user_input:
-                return 'confirmed'
-            elif 'no' in user_input or 'cancel' in user_input:
-                return 'cancelled'
-            else:
-                return 'error'
+            agent_state = context.get('agent_state')
+            if agent_state and agent_state.messages:
+                user_input = agent_state.messages[-1].content.lower()
+                if 'yes' in user_input or 'confirm' in user_input or 'sure' in user_input:
+                    return 'confirmed'
+                elif 'no' in user_input or 'cancel' in user_input:
+                    return 'cancelled'
+            return 'error'
         elif current_state == AgentState.TOOL_CALL:
             if next_state == AgentState.SUMMARIZE_TOOL_RESULT:
                 return 'success'
@@ -589,7 +536,7 @@ class AgentTransitionMachine(AgentStateMachine):
                                     execute_tool_func, 
                                     get_tool_confirmation_func,
                                     summarize_tool_result_func,
-                                    agent_state=None) -> AsyncGenerator[str, None]:
+                                    agent_state: AgentStateData) -> AsyncGenerator[str, None]:
         """
         Process messages using the advanced state machine with transition graph validation.
         
@@ -598,40 +545,31 @@ class AgentTransitionMachine(AgentStateMachine):
             execute_tool_func: Function to execute tools
             get_tool_confirmation_func: Function to get tool confirmation messages
             summarize_tool_result_func: Function to summarize tool results
-            agent_state: Current state of the agent
+            agent_state: AgentState object containing all conversation data
             
         Yields:
             str: Response messages
         """
         try:
-            # Convert messages to LangChain format
-            input_messages = []
-            for msg in messages:
-                converted = self._convert_message(msg)
-                if converted:
-                    input_messages.append(converted)
+            # Update agent state with new messages
+            await agent_state.update(messages=messages, status="active")
             
-            if not input_messages:
+            # Get the last user message from agent state
+            if not agent_state.messages:
                 yield "I didn't receive any valid messages to process."
                 return
             
-            # Get the last user message
-            user_message = input_messages[-1]
-            if not isinstance(user_message, HumanMessage):
+            last_message = agent_state.messages[-1]
+            if not isinstance(last_message, HumanMessage):
                 yield "I need a user message to process."
                 return
             
-            # Initialize context
+            # Initialize minimal context for state handlers
             context = {
-                'history': [user_message.content],
-                'user_input': user_message.content,
                 'agent_state': agent_state,
                 'execute_tool_func': execute_tool_func,
                 'get_tool_confirmation_func': get_tool_confirmation_func,
                 'summarize_tool_result_func': summarize_tool_result_func,
-                'agent_action': None,
-                'tool_result': None,
-                'last_tool': None,
             }
             
             # Start with thinking state
@@ -674,4 +612,5 @@ class AgentTransitionMachine(AgentStateMachine):
                 
         except Exception as e:
             logger.error(f"Error in process_messages_stream: {e}")
-            yield f"Error processing messages: {str(e)}" 
+            yield f"Error processing messages: {str(e)}"
+            await agent_state.update(status="error") 

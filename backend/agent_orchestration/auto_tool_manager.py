@@ -244,14 +244,54 @@ class AutoToolManager:
             # Create a universal wrapper that handles any parameter pattern
             def create_universal_wrapper(service_method, method_metadata):
                 import logging
-                def sync_wrapper(args: dict):
+                def sync_wrapper(*args, **kwargs):
                     logger = logging.getLogger(__name__)
-                    logger.debug(f"Calling {service_method.__name__} with args type: {type(args)}, value: {args}")
-                    return self._call_service_method(service_method, method_metadata, args)
-                async def async_wrapper(args: dict):
+                    # Handle different calling patterns from LangChain
+                    if args and kwargs:
+                        # Both args and kwargs provided - combine them
+                        all_args = {}
+                        if isinstance(args[0], dict):
+                            all_args.update(args[0])
+                        else:
+                            all_args["input"] = args[0]
+                        all_args.update(kwargs)
+                    elif args:
+                        # Only args provided
+                        if isinstance(args[0], dict):
+                            all_args = args[0]
+                        else:
+                            all_args = {"input": args[0]}
+                    else:
+                        # Only kwargs provided
+                        all_args = kwargs
+                    
+                    logger.debug(f"Calling {service_method.__name__} with args: {all_args}")
+                    return self._call_service_method(service_method, method_metadata, all_args)
+                
+                async def async_wrapper(*args, **kwargs):
                     logger = logging.getLogger(__name__)
-                    logger.debug(f"Calling {service_method.__name__} with args type: {type(args)}, value: {args}")
-                    return await self._call_service_method(service_method, method_metadata, args)
+                    # Handle different calling patterns from LangChain
+                    if args and kwargs:
+                        # Both args and kwargs provided - combine them
+                        all_args = {}
+                        if isinstance(args[0], dict):
+                            all_args.update(args[0])
+                        else:
+                            all_args["input"] = args[0]
+                        all_args.update(kwargs)
+                    elif args:
+                        # Only args provided
+                        if isinstance(args[0], dict):
+                            all_args = args[0]
+                        else:
+                            all_args = {"input": args[0]}
+                    else:
+                        # Only kwargs provided
+                        all_args = kwargs
+                    
+                    logger.debug(f"Calling {service_method.__name__} with args: {all_args}")
+                    return await self._call_service_method_async(service_method, method_metadata, all_args)
+                
                 if asyncio.iscoroutinefunction(service_method):
                     return async_wrapper
                 else:
@@ -276,14 +316,81 @@ class AutoToolManager:
         parameters = list(sig.parameters.values())
         if parameters and parameters[0].name == 'self':
             parameters = parameters[1:]
+        
         if not parameters:
             return method()
-        if len(parameters) == 1:
-            # Single parameter: pass args directly
-            return method(args)
+        elif len(parameters) == 1:
+            # Single parameter: pass args as the single argument
+            param = parameters[0]
+            if param.kind in [inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD]:
+                # Special handling for write_event method - convert individual parameters to event_details
+                if metadata.method_name == "write_event" and "event_details" not in args:
+                    # Convert individual event parameters to event_details format
+                    event_details = {}
+                    event_fields = ["summary", "description", "start", "end", "location", "attendees"]
+                    for field in event_fields:
+                        if field in args:
+                            event_details[field] = args[field]
+                    # Pass any remaining args that aren't event fields
+                    for key, value in args.items():
+                        if key not in event_fields:
+                            event_details[key] = value
+                    return method(event_details)
+                elif metadata.method_name == "write_event" and "event_details" in args:
+                    # Extract event_details from args
+                    return method(args["event_details"])
+                else:
+                    # Pass the entire args dict as the single argument
+                    return method(args)
+            else:
+                # For keyword-only parameters, unpack as kwargs
+                return method(**args)
         else:
             # Multiple parameters: unpack args as kwargs
             return method(**args)
+    
+    async def _call_service_method_async(self, method: Callable, metadata: ToolMetadata, args: dict):
+        """
+        Async version of universal method caller that adapts arguments to match the method signature.
+        Always expects args as a dict.
+        """
+        import inspect
+        sig = inspect.signature(method)
+        parameters = list(sig.parameters.values())
+        if parameters and parameters[0].name == 'self':
+            parameters = parameters[1:]
+        
+        if not parameters:
+            return await method()
+        elif len(parameters) == 1:
+            # Single parameter: pass args as the single argument
+            param = parameters[0]
+            if param.kind in [inspect.Parameter.POSITIONAL_ONLY, inspect.Parameter.POSITIONAL_OR_KEYWORD]:
+                # Special handling for write_event method - convert individual parameters to event_details
+                if metadata.method_name == "write_event" and "event_details" not in args:
+                    # Convert individual event parameters to event_details format
+                    event_details = {}
+                    event_fields = ["summary", "description", "start", "end", "location", "attendees"]
+                    for field in event_fields:
+                        if field in args:
+                            event_details[field] = args[field]
+                    # Pass any remaining args that aren't event fields
+                    for key, value in args.items():
+                        if key not in event_fields:
+                            event_details[key] = value
+                    return await method(event_details)
+                elif metadata.method_name == "write_event" and "event_details" in args:
+                    # Extract event_details from args
+                    return await method(args["event_details"])
+                else:
+                    # Pass the entire args dict as the single argument
+                    return await method(args)
+            else:
+                # For keyword-only parameters, unpack as kwargs
+                return await method(**args)
+        else:
+            # Multiple parameters: unpack args as kwargs
+            return await method(**args)
     
     def get_tools_by_category(self, category: str) -> List[Tool]:
         """Get tools by category."""

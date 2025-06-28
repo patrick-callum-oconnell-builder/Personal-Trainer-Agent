@@ -1,7 +1,7 @@
 import pytest
 import pytest_asyncio
 from backend.personal_trainer_agent import PersonalTrainerAgent
-from backend.google_services import GoogleCalendarService
+from backend.tools.personal_trainer_tool_manager import PersonalTrainerToolManager
 from unittest.mock import AsyncMock
 from datetime import datetime, timedelta, timezone
 import json
@@ -10,16 +10,15 @@ import asyncio
 import re
 
 @pytest_asyncio.fixture
-async def agent():
-    """Create a fully initialized agent with a real calendar service."""
-    calendar_service = GoogleCalendarService()
-    await calendar_service.authenticate()  # Authenticate the service
-    agent = PersonalTrainerAgent(
-        calendar_service=calendar_service,
-        gmail_service=None,
-        tasks_service=None,
-        drive_service=None,
-        sheets_service=None,
-        maps_service=None
-    )
+async def tool_manager():
+    """Create a tool manager with real calendar service."""
+    from backend.api.routes import initialize_services
+    services = await initialize_services()
+    tool_manager = PersonalTrainerToolManager(services)
+    return tool_manager
+
+@pytest_asyncio.fixture
+async def agent(tool_manager):
+    """Create a fully initialized agent with the tool manager."""
+    agent = PersonalTrainerAgent(tool_manager=tool_manager)
     return agent

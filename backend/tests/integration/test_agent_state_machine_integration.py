@@ -3,6 +3,7 @@ import asyncio
 import time
 from unittest.mock import AsyncMock, MagicMock, patch
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
+from backend.agent_orchestration.agent_state import AgentState
 from backend.agent_orchestration.agent_state_machine import AgentStateMachine
 from backend.personal_trainer_agent import PersonalTrainerAgent
 from backend.tests.integration.base_integration_test import BaseIntegrationTest
@@ -12,14 +13,99 @@ class TestAgentStateMachineIntegration(BaseIntegrationTest):
     """Integration tests for the agent state machine."""
     
     @pytest.mark.asyncio
-    async def test_state_machine_initialization(self, agent: PersonalTrainerAgent):
+    async def test_state_machine_initialization(self, agent):
         """Test that the state machine initializes correctly."""
         awaited_agent = await agent
         state_machine = awaited_agent.state_machine
         
+        # Verify the state machine is properly initialized
         assert state_machine is not None
-        assert hasattr(state_machine, 'decide_next_action')
+        assert hasattr(state_machine, 'current_state')
         assert hasattr(state_machine, 'process_messages_stream')
+        
+        print(f"State machine initialized with current state: {state_machine.current_state}")
+    
+    @pytest.mark.asyncio
+    async def test_basic_message_processing(self, agent):
+        """Test basic message processing through the state machine."""
+        awaited_agent = await agent
+        
+        # Use the agent's process_message method instead of calling state machine directly
+        response_stream = awaited_agent.process_message("Hello! How are you?")
+        
+        responses = []
+        async for response in response_stream:
+            responses.append(response)
+            print(f"Response: {response}")
+        
+        # Verify we get a valid response
+        assert len(responses) > 0
+        assert any(response for response in responses if response.strip())
+    
+    @pytest.mark.asyncio
+    @pytest.mark.timeout(30)
+    async def test_tool_execution_flow(self, agent):
+        """Test the flow when a tool needs to be executed."""
+        awaited_agent = await agent
+        
+        # Use the agent's process_message method for tool execution
+        response_stream = awaited_agent.process_message("Schedule a workout for tomorrow at 3pm")
+        
+        responses = []
+        async for response in response_stream:
+            responses.append(response)
+            print(f"Response: {response}")
+        
+        # Verify we got responses
+        assert len(responses) > 0
+        
+        # Should have some indication of calendar/workout activity
+        full_response = " ".join(responses)
+        assert any(keyword in full_response.lower() for keyword in ["workout", "schedule", "calendar", "3pm", "tomorrow"])
+    
+    @pytest.mark.asyncio
+    async def test_error_handling(self, agent):
+        """Test error handling in the state machine."""
+        awaited_agent = await agent
+        
+        # Test with an ambiguous request
+        response_stream = awaited_agent.process_message("This is an ambiguous request")
+        
+        responses = []
+        try:
+            async for response in response_stream:
+                responses.append(response)
+                print(f"Response: {response}")
+        except Exception as e:
+            print(f"Expected error caught: {e}")
+            # Error handling should prevent the test from failing
+            assert True
+        
+        # Verify we got some response even for ambiguous requests
+        assert len(responses) > 0
+    
+    @pytest.mark.asyncio
+    async def test_conversation_context_preservation(self, agent):
+        """Test that conversation context is preserved across state transitions."""
+        awaited_agent = await agent
+        
+        # Build conversation context through multiple messages
+        response1_content = ""
+        async for chunk in awaited_agent.process_message("My name is Sarah"):
+            response1_content += chunk
+        
+        response_stream = awaited_agent.process_message("I want to lose weight")
+        
+        responses = []
+        async for response in response_stream:
+            responses.append(response)
+            print(f"Response: {response}")
+        
+        # Verify we got a response that references the context
+        assert len(responses) > 0
+        full_response = " ".join(responses)
+        # The agent should reference either the name or the weight loss goal
+        assert "Sarah" in full_response or "weight" in full_response.lower() or "lose" in full_response.lower()
     
     @pytest.mark.asyncio
     @pytest.mark.timeout(30)
@@ -28,9 +114,11 @@ class TestAgentStateMachineIntegration(BaseIntegrationTest):
         awaited_agent = await agent
         state_machine = awaited_agent.state_machine
         
-        # Test with a simple greeting
-        history = [HumanMessage(content="Hello there!")]
-        action = await state_machine.decide_next_action(history)
+        # Test with a simple greeting using agent state
+        agent_state = awaited_agent.agent_state
+        await agent_state.update(messages=[HumanMessage(content="Hello there!")])
+        
+        action = await state_machine.decide_next_action(agent_state)
         
         assert action is not None
         assert "type" in action
@@ -50,9 +138,11 @@ class TestAgentStateMachineIntegration(BaseIntegrationTest):
         awaited_agent = await agent
         state_machine = awaited_agent.state_machine
         
-        # Test with a calendar query
-        history = [HumanMessage(content="What's on my calendar tomorrow?")]
-        action = await state_machine.decide_next_action(history)
+        # Test with a calendar query using agent state
+        agent_state = awaited_agent.agent_state
+        await agent_state.update(messages=[HumanMessage(content="What's on my calendar tomorrow?")])
+        
+        action = await state_machine.decide_next_action(agent_state)
         
         assert action is not None
         assert "type" in action
@@ -71,9 +161,11 @@ class TestAgentStateMachineIntegration(BaseIntegrationTest):
         awaited_agent = await agent
         state_machine = awaited_agent.state_machine
         
-        # Test with malformed input
-        history = [HumanMessage(content="")]
-        action = await state_machine.decide_next_action(history)
+        # Test with malformed input using agent state
+        agent_state = awaited_agent.agent_state
+        await agent_state.update(messages=[HumanMessage(content="")])
+        
+        action = await state_machine.decide_next_action(agent_state)
         
         assert action is not None
         assert "type" in action
@@ -85,14 +177,16 @@ class TestAgentStateMachineIntegration(BaseIntegrationTest):
         awaited_agent = await agent
         state_machine = awaited_agent.state_machine
         
-        # Test with conversation history
+        # Test with conversation history using agent state
+        agent_state = awaited_agent.agent_state
         history = [
             HumanMessage(content="Hello"),
             AIMessage(content="Hi there! How can I help you today?"),
             HumanMessage(content="I want to schedule a workout")
         ]
+        await agent_state.update(messages=history)
         
-        action = await state_machine.decide_next_action(history)
+        action = await state_machine.decide_next_action(agent_state)
         
         assert action is not None
         assert "type" in action
@@ -115,13 +209,17 @@ class TestAgentStateMachineIntegration(BaseIntegrationTest):
         mock_summarize_result = AsyncMock(return_value="Tool result summarized")
         
         history = [HumanMessage(content="Hello")]
+        agent_state = awaited_agent.agent_state
+        await agent_state.update(messages=history)
+        
         messages = []
         
         async for message in state_machine.process_messages_stream(
             messages=history,
             execute_tool_func=mock_execute_tool,
             get_tool_confirmation_func=mock_get_confirmation,
-            summarize_tool_result_func=mock_summarize_result
+            summarize_tool_result_func=mock_summarize_result,
+            agent_state=agent_state
         ):
             messages.append(message)
         
@@ -141,6 +239,9 @@ class TestAgentStateMachineIntegration(BaseIntegrationTest):
         mock_summarize_result = AsyncMock(return_value="Here are your calendar events")
         
         history = [HumanMessage(content="Show me my calendar")]
+        agent_state = awaited_agent.agent_state
+        await agent_state.update(messages=history)
+        
         messages = []
         
         print("[DEBUG] test_streaming_with_tool_calls: Prompt=Show me my calendar")
@@ -149,7 +250,8 @@ class TestAgentStateMachineIntegration(BaseIntegrationTest):
             messages=history,
             execute_tool_func=mock_execute_tool,
             get_tool_confirmation_func=mock_get_confirmation,
-            summarize_tool_result_func=mock_summarize_result
+            summarize_tool_result_func=mock_summarize_result,
+            agent_state=agent_state
         ):
             print(f"[DEBUG] Received message: {message}")
             messages.append(message)
@@ -174,9 +276,11 @@ class TestAgentStateMachineIntegration(BaseIntegrationTest):
         mock_summarize_result = AsyncMock(return_value="Tool result summarized")
         
         history = [HumanMessage(content="Test timeout handling")]
+        agent_state = awaited_agent.agent_state
+        await agent_state.update(messages=history)
         
         # Should not hang indefinitely
-        action = await state_machine.decide_next_action(history)
+        action = await state_machine.decide_next_action(agent_state)
         assert action is not None
     
     @pytest.mark.asyncio
@@ -190,8 +294,10 @@ class TestAgentStateMachineIntegration(BaseIntegrationTest):
             SystemMessage(content="You are a helpful personal trainer assistant."),
             HumanMessage(content="Hello")
         ]
+        agent_state = awaited_agent.agent_state
+        await agent_state.update(messages=history)
         
-        action = await state_machine.decide_next_action(history)
+        action = await state_machine.decide_next_action(agent_state)
         
         assert action is not None
         assert "type" in action
@@ -207,11 +313,17 @@ class TestAgentStateMachineIntegration(BaseIntegrationTest):
         history1 = [HumanMessage(content="Hello")]
         history2 = [HumanMessage(content="Hi")]
         
+        agent_state1 = awaited_agent.agent_state
+        await agent_state1.update(messages=history1)
+        
+        agent_state2 = awaited_agent.agent_state
+        await agent_state2.update(messages=history2)
+        
         print("[DEBUG] test_state_machine_decision_consistency: Prompt1=Hello, Prompt2=Hi")
         start_time = time.time()
-        action1 = await state_machine.decide_next_action(history1)
+        action1 = await state_machine.decide_next_action(agent_state1)
         print(f"[DEBUG] Action1: {action1}")
-        action2 = await state_machine.decide_next_action(history2)
+        action2 = await state_machine.decide_next_action(agent_state2)
         print(f"[DEBUG] Action2: {action2}")
         end_time = time.time()
         print(f"[DEBUG] test_state_machine_decision_consistency: Response time={{end_time - start_time:.2f}}s")
@@ -226,6 +338,7 @@ class TestAgentStateMachineIntegration(BaseIntegrationTest):
         assert action2["type"] in ["message", "tool_call"]
     
     @pytest.mark.asyncio
+    @pytest.mark.timeout(30)
     async def test_state_machine_with_complex_queries(self, agent: PersonalTrainerAgent):
         """Test state machine with complex queries."""
         awaited_agent = await agent
@@ -239,7 +352,10 @@ class TestAgentStateMachineIntegration(BaseIntegrationTest):
         
         for query in complex_queries:
             history = [HumanMessage(content=query)]
-            action = await state_machine.decide_next_action(history)
+            agent_state = awaited_agent.agent_state
+            await agent_state.update(messages=history)
+            
+            action = await state_machine.decide_next_action(agent_state)
             
             assert action is not None
             assert "type" in action

@@ -4,6 +4,9 @@ State Handlers for Agent State Machine
 This module contains the state handler classes that implement the logic for each
 state in the agent state machine. Each handler is responsible for processing
 a specific state and determining the next state transition.
+
+The handlers work with AgentState as the single source of truth for all
+conversation data, focusing on state transitions rather than data management.
 """
 
 import logging
@@ -31,7 +34,11 @@ class StateHandler:
         Handle the current state and return the next state and optional response.
         
         Args:
-            context: Current state context
+            context: Current state context containing:
+                - agent_state: AgentState object (single source of truth)
+                - execute_tool_func: Function to execute tools
+                - get_tool_confirmation_func: Function to get tool confirmation messages
+                - summarize_tool_result_func: Function to summarize tool results
             
         Returns:
             Tuple of (next_state, optional_response)
@@ -47,26 +54,84 @@ class ThinkingStateHandler(StateHandler):
     
     async def handle(self, context: Dict[str, Any]) -> tuple[AgentState, Optional[str]]:
         """Handle the thinking state - decide next action."""
-        if context.get('agent_state'):
-            await context['agent_state'].update(status=AgentState.THINKING.value)
+        agent_state = context['agent_state']
+        
+        # Update agent state status
+        await agent_state.update(status=AgentState.THINKING.value)
+        
         try:
-            agent_action = await self.state_machine.decide_next_action(context['history'])
+            # Use the state machine to decide next action based on agent state
+            agent_action = await self.state_machine.decide_next_action(agent_state)
+            
             if agent_action["type"] == "message":
+                # Add the AI response to the conversation history
+                from langchain_core.messages import AIMessage
+                new_messages = agent_state.messages + [AIMessage(content=agent_action["content"])]
+                await agent_state.update(messages=new_messages, status="awaiting_user")
                 return AgentState.DONE, agent_action["content"]
+                
             elif agent_action["type"] == "tool_call":
-                context['last_tool'] = agent_action["tool"]
+                # Store the tool action in agent state for later use
+                await agent_state.update(
+                    status=AgentState.CONFIRMATION.value, 
+                    last_tool_result=None
+                )
+                # Store tool action in context for state handlers
                 context['agent_action'] = agent_action
-                if context.get('agent_state'):
-                    await context['agent_state'].update(status=AgentState.CONFIRMATION.value, last_tool_result=None)
-                # Transition to confirmation state instead of directly to tool call
+                context['last_tool'] = agent_action["tool"]
                 return AgentState.CONFIRMATION, None
             else:
-                return AgentState.DONE, None
+                await agent_state.update(status="error")
+                return AgentState.ERROR, "Invalid action type returned from decision making."
+                
         except Exception as e:
             logger.error(f"Error in ThinkingStateHandler: {e}")
-            if context.get('agent_state'):
-                await context['agent_state'].update(status=AgentState.ERROR.value)
+            await agent_state.update(status=AgentState.ERROR.value)
             return AgentState.ERROR, f"Sorry, something went wrong while deciding next action: {str(e)}"
+
+
+class ConfirmationStateHandler(StateHandler):
+    """Handler for the AGENT_CONFIRMATION state."""
+    
+    async def handle(self, context: Dict[str, Any]) -> tuple[AgentState, Optional[str]]:
+        """Handle the confirmation state - send confirmation message and proceed to tool execution."""
+        agent_state = context['agent_state']
+        agent_action = context.get('agent_action')
+        
+        if not agent_action:
+            await agent_state.update(status="error")
+            return AgentState.ERROR, "No tool action found for confirmation."
+        
+        # Generate a user-friendly confirmation message
+        tool_name = agent_action["tool"]
+        tool_args = agent_action["args"]
+        
+        # Create a clean confirmation message without exposing internal tool names
+        if tool_name == "create_calendar_event":
+            confirmation = "I'll schedule that for you."
+        elif tool_name == "get_calendar_events":
+            confirmation = "Let me check your calendar."
+        elif tool_name == "send_email":
+            confirmation = "I'll send that email for you."
+        elif tool_name == "create_task":
+            confirmation = "I'll create that task for you."
+        elif tool_name == "search_location":
+            confirmation = "I'll search for that location."
+        elif tool_name == "create_workout_tracker":
+            confirmation = "I'll create a workout tracker for you."
+        elif tool_name == "add_workout_entry":
+            confirmation = "I'll log that workout for you."
+        elif tool_name == "add_nutrition_entry":
+            confirmation = "I'll log that nutrition entry for you."
+        else:
+            confirmation = "I'll handle that for you."
+        
+        # Add the confirmation message to conversation history
+        from langchain_core.messages import AIMessage
+        new_messages = agent_state.messages + [AIMessage(content=confirmation)]
+        await agent_state.update(messages=new_messages)
+        
+        return AgentState.TOOL_CALL, confirmation
 
 
 class ToolCallStateHandler(StateHandler):
@@ -74,20 +139,34 @@ class ToolCallStateHandler(StateHandler):
     
     async def handle(self, context: Dict[str, Any]) -> tuple[AgentState, Optional[str]]:
         """Handle the tool call state - execute tool."""
+        agent_state = context['agent_state']
+        agent_action = context.get('agent_action')
+        
+        if not agent_action:
+            await agent_state.update(status="error")
+            return AgentState.ERROR, "No tool action found for execution."
+        
         try:
+            # Execute the tool
             tool_result = await context['execute_tool_func'](
-                context['agent_action']["tool"], 
-                context['agent_action']["args"]
+                agent_action["tool"], 
+                agent_action["args"]
             )
-            if context.get('agent_state'):
-                await context['agent_state'].update(last_tool_result=tool_result)
-            context['history'].append(f"TOOL RESULT: {tool_result}")
+            
+            # Store the tool result in agent state
+            await agent_state.update(
+                status=AgentState.SUMMARIZE_TOOL_RESULT.value,
+                last_tool_result=tool_result
+            )
+            
+            # Store tool result in context for state handlers
             context['tool_result'] = tool_result
+            
             return AgentState.SUMMARIZE_TOOL_RESULT, None
+            
         except Exception as e:
             logger.error(f"Error in ToolCallStateHandler: {e}")
-            if context.get('agent_state'):
-                await context['agent_state'].update(status=AgentState.ERROR.value)
+            await agent_state.update(status=AgentState.ERROR.value)
             return AgentState.ERROR, f"Sorry, something went wrong while executing the tool: {str(e)}"
 
 
@@ -96,90 +175,64 @@ class SummarizeToolResultStateHandler(StateHandler):
     
     async def handle(self, context: Dict[str, Any]) -> tuple[AgentState, Optional[str]]:
         """Handle the summarize state - summarize tool result."""
+        agent_state = context['agent_state']
+        last_tool = context.get('last_tool')
+        tool_result = context.get('tool_result')
+        
+        if not tool_result:
+            await agent_state.update(status="error")
+            return AgentState.ERROR, "No tool result found for summarization."
+        
         try:
+            # Generate summary using the provided function
             summary = await context['summarize_tool_result_func'](
-                context['last_tool'], 
-                context['tool_result']
+                last_tool, 
+                tool_result
             )
+            
             if not summary:
-                logger.error(f"LLM returned empty summary for tool {context['last_tool']} and result {context['tool_result']}")
+                logger.error(f"LLM returned empty summary for tool {last_tool} and result {tool_result}")
                 raise RuntimeError("LLM returned empty summary")
-            if context.get('agent_state'):
-                await context['agent_state'].update(status=AgentState.DONE.value)
+            
+            # Add the summary to conversation history
+            from langchain_core.messages import AIMessage
+            new_messages = agent_state.messages + [AIMessage(content=summary)]
+            await agent_state.update(
+                messages=new_messages,
+                status="awaiting_user"
+            )
+            
             return AgentState.DONE, summary
+            
         except Exception as e:
             logger.error(f"Error in SummarizeToolResultStateHandler: {e}")
-            if context.get('agent_state'):
-                await context['agent_state'].update(status=AgentState.ERROR.value)
-            return AgentState.ERROR, f"Sorry, something went wrong while summarizing the tool result: {str(e)}"
+            await agent_state.update(status=AgentState.ERROR.value)
+            return AgentState.ERROR, f"Sorry, something went wrong while summarizing the result: {str(e)}"
 
 
 class ErrorStateHandler(StateHandler):
     """Handler for the ERROR state."""
+    
     async def handle(self, context: Dict[str, Any]) -> tuple[AgentState, Optional[str]]:
-        return AgentState.DONE, "Sorry, an error occurred and the agent cannot continue this conversation."
-
-
-class ConfirmationStateHandler(StateHandler):
-    """Handler for the AGENT_CONFIRMATION state."""
-    async def handle(self, context: Dict[str, Any]) -> tuple[AgentState, Optional[str]]:
-        """Send an informational confirmation message and proceed to tool execution."""
-        try:
-            # Generate an informational confirmation message for the user
-            agent_action = context.get('agent_action')
-            if not agent_action:
-                return AgentState.ERROR, "Sorry, I couldn't determine what to confirm."
-            tool = agent_action["tool"]
-            args = agent_action["args"]
-            
-            # Create a clean, user-friendly confirmation message without tool names
-            if tool == "create_calendar_event":
-                confirmation_message = "Sure, I'll add that to your calendar."
-            elif tool == "get_calendar_events":
-                confirmation_message = "I'll check your calendar for that time period."
-            elif tool == "send_email":
-                confirmation_message = "I'll send that email for you."
-            elif tool == "create_task":
-                confirmation_message = "I'll create that task for you."
-            elif tool == "get_tasks":
-                confirmation_message = "I'll get your tasks for you."
-            elif tool == "search_drive":
-                confirmation_message = "I'll search your Drive for that."
-            elif tool == "create_folder":
-                confirmation_message = "I'll create that folder for you."
-            elif tool == "create_workout_tracker":
-                confirmation_message = "I'll create a workout tracker for you."
-            elif tool == "add_workout_entry":
-                confirmation_message = "I'll log that workout for you."
-            elif tool == "add_nutrition_entry":
-                confirmation_message = "I'll log that nutrition entry for you."
-            elif tool == "get_directions":
-                confirmation_message = "I'll get those directions for you."
-            elif tool == "get_nearby_locations":
-                confirmation_message = "I'll find nearby locations for you."
-            elif tool == "add_preference_to_kg":
-                confirmation_message = "I'll remember that preference for you."
-            elif tool == "resolve_calendar_conflict":
-                confirmation_message = "I'll help resolve that calendar conflict."
-            else:
-                confirmation_message = "I'll take care of that for you."
-            
-            if context.get('agent_state'):
-                await context['agent_state'].update(status=AgentState.CONFIRMATION.value)
-            
-            # Immediately proceed to tool execution after confirming
-            return AgentState.TOOL_CALL, confirmation_message
-        except Exception as e:
-            logger.error(f"Error in ConfirmationStateHandler: {e}")
-            if context.get('agent_state'):
-                await context['agent_state'].update(status=AgentState.ERROR.value)
-            return AgentState.ERROR, f"Sorry, something went wrong while confirming the action: {str(e)}"
+        """Handle the error state."""
+        agent_state = context['agent_state']
+        
+        # Ensure agent state is marked as error
+        await agent_state.update(status="error")
+        
+        return AgentState.DONE, "An error occurred. Please try again."
 
 
 class StateTransitionGraph:
-    """Represents a state transition graph for the agent state machine."""
+    """
+    Graph representing valid state transitions in the agent state machine.
+    
+    This class defines the allowed transitions between states and provides
+    validation for state transitions.
+    """
     
     def __init__(self):
+        """Initialize the transition graph with valid state transitions."""
         self.transitions = {
             AgentState.THINKING: {
                 'message_response': AgentState.DONE,
@@ -200,24 +253,20 @@ class StateTransitionGraph:
                 'error': AgentState.ERROR,
             },
             AgentState.ERROR: {
-                'recover': AgentState.THINKING,
-                'end': AgentState.DONE,
+                'error': AgentState.DONE,
             },
-            AgentState.DONE: {
-                'end': None,  # Terminal state
-            }
         }
     
     def get_next_state(self, current_state: AgentState, event: str) -> Optional[AgentState]:
         """
-        Get the next state based on current state and event.
+        Get the next state based on the current state and event.
         
         Args:
             current_state: Current state
             event: Event that occurred
             
         Returns:
-            Next state or None if terminal
+            Next state or None if transition is invalid
         """
         state_transitions = self.transitions.get(current_state, {})
         return state_transitions.get(event) 

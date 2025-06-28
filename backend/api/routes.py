@@ -73,6 +73,17 @@ async def initialize_services():
         await sheets_service.authenticate()
         
         logger.info("All Google services initialized successfully")
+        
+        # Return services dictionary for testing
+        return {
+            'calendar': calendar_service,
+            'gmail': gmail_service,
+            'maps': maps_service,
+            'fitness': fitness_service,
+            'tasks': tasks_service,
+            'drive': drive_service,
+            'sheets': sheets_service
+        }
     except Exception as e:
         logger.error(f"Failed to initialize services: {str(e)}")
         raise RuntimeError(f"Failed to initialize services: {str(e)}")

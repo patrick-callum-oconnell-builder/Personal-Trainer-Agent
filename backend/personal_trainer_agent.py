@@ -7,6 +7,7 @@ from typing import Any
 # Third-party imports
 from dotenv import load_dotenv
 from langchain_openai import ChatOpenAI
+from langchain_core.messages import AIMessage
 
 # Local imports
 from backend.agent_orchestration import OrchestratedAgent, AgentStateMachine, AgentState
@@ -71,3 +72,17 @@ class PersonalTrainerAgent(OrchestratedAgent):
             extract_preference_func=super().extract_preference_llm,
             extract_timeframe_func=extract_timeframe_from_text
         )
+
+    async def process_message(self, message):
+        """
+        Process a single message and return a streaming response.
+        
+        Args:
+            message: The message to process (HumanMessage, AIMessage, etc.)
+            
+        Yields:
+            str: Streaming response content
+        """
+        # Process the message through the orchestrated agent stream
+        async for update in self.process_messages_stream([message]):
+            yield update

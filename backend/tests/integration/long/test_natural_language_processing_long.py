@@ -5,14 +5,7 @@ from datetime import datetime, timedelta
 import json
 from langchain_core.messages import HumanMessage, AIMessage, SystemMessage
 from backend.personal_trainer_agent import PersonalTrainerAgent
-from backend.google_services import (
-    GoogleCalendarService,
-    GoogleDriveService,
-    GoogleGmailService,
-    GoogleMapsService,
-    GoogleSheetsService,
-    GoogleTasksService,
-)
+from backend.tools.personal_trainer_tool_manager import PersonalTrainerToolManager
 from dotenv import load_dotenv
 import pytest_asyncio
 import pytz
@@ -26,20 +19,25 @@ async def agent():
     if not maps_api_key:
         raise ValueError("Missing required environment variable: GOOGLE_MAPS_API_KEY")
     
+    # Initialize services using the new architecture
+    from backend.api.routes import initialize_services
+    services = await initialize_services()
+    
+    # Create agent with individual services (agent creates its own tool manager internally)
     agent = PersonalTrainerAgent(
-        calendar_service=GoogleCalendarService(),
-        gmail_service=GoogleGmailService(),
-        tasks_service=GoogleTasksService(),
-        drive_service=GoogleDriveService(),
-        sheets_service=GoogleSheetsService(),
-        maps_service=GoogleMapsService(api_key=maps_api_key)
+        calendar_service=services['calendar'],
+        gmail_service=services['gmail'],
+        tasks_service=services['tasks'],
+        drive_service=services['drive'],
+        sheets_service=services['sheets'],
+        maps_service=services['maps']
     )
-    await agent.async_init()
     return agent
 
 @pytest.mark.asyncio
 async def test_natural_language_to_calendar_json_conversion(agent: PersonalTrainerAgent):
     """Test conversion of natural language to calendar event JSON."""
+    awaited_agent = await agent
     test_cases = [
         (
             "Schedule a workout tomorrow at 2pm for 1 hour",
@@ -64,7 +62,7 @@ async def test_natural_language_to_calendar_json_conversion(agent: PersonalTrain
     ]
     
     for input_text, expected_format in test_cases:
-        json_string = await agent.tool_manager.convert_natural_language_to_calendar_json(input_text)
+        json_string = await awaited_agent.tool_manager.convert_natural_language_to_calendar_json(input_text)
         assert json_string is not None
         assert isinstance(json_string, str)
         
@@ -84,17 +82,18 @@ async def test_natural_language_to_calendar_json_conversion(agent: PersonalTrain
 @pytest.mark.asyncio
 async def test_tool_execution_with_natural_language(agent: PersonalTrainerAgent):
     """Test the full tool execution flow with a natural language command."""
+    awaited_agent = await agent
     natural_language_command = "Schedule a team meeting tomorrow at 11am for 30 minutes"
     
     # Create a mock for the actual tool execution to avoid side effects
     async def mock_execute_tool(tool_name, args):
         return {"status": "success", "tool_name": tool_name, "args": args}
     
-    agent.tool_manager.execute_tool = mock_execute_tool
+    awaited_agent.tool_manager.execute_tool = mock_execute_tool
     
     # Process the command (call on agent, not tool_manager)
-    if hasattr(agent, 'execute_tool_from_natural_language'):
-        result = await agent.execute_tool_from_natural_language(natural_language_command)
+    if hasattr(awaited_agent, 'execute_tool_from_natural_language'):
+        result = await awaited_agent.execute_tool_from_natural_language(natural_language_command)
     else:
         pytest.skip("Agent does not implement execute_tool_from_natural_language")
     
@@ -107,10 +106,11 @@ async def test_tool_execution_with_natural_language(agent: PersonalTrainerAgent)
 @pytest.mark.asyncio
 async def test_tool_confirmation_messages(agent: PersonalTrainerAgent):
     """Test the generation of tool confirmation messages."""
+    awaited_agent = await agent
     tool_name = "create_calendar_event"
     args = {"summary": "Project Sync", "start": {"dateTime": "2024-07-20T10:00:00"}, "end": {"dateTime": "2024-07-20T11:00:00"}}
     
-    confirmation_message = await agent.tool_manager.get_tool_confirmation_message(tool_name, args)
+    confirmation_message = await awaited_agent.tool_manager.get_tool_confirmation_message(tool_name, args)
     
     # Accept various confirmation message formats
     assert (
@@ -127,6 +127,7 @@ async def test_tool_result_processing(agent: PersonalTrainerAgent):
     Test that the agent can process the result of a tool execution
     and return a user-friendly response.
     """
+    awaited_agent = await agent
     tool_name = "create_calendar_event"
     event_details = {
         "summary": "Morning Jog",
@@ -135,14 +136,14 @@ async def test_tool_result_processing(agent: PersonalTrainerAgent):
     }
     
     # Simulate tool execution by directly calling the service
-    created_event = await agent.calendar_service.write_event(event_details)
+    created_event = await awaited_agent.tool_manager.services['calendar'].write_event(event_details)
     
     # Process the result
-    response = await agent.process_tool_result(tool_name, created_event)
+    response = await awaited_agent.process_tool_result(tool_name, created_event)
     
     # Assert that the response is a user-friendly summary
     assert "event has been scheduled" in response.lower()
     assert "morning jog" in response.lower()
     
     # Clean up the created event
-    await agent.calendar_service.delete_event(created_event["id"]) 
+    await awaited_agent.tool_manager.services['calendar'].delete_event(created_event["id"]) 

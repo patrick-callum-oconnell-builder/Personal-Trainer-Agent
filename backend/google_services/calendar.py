@@ -519,8 +519,20 @@ class GoogleCalendarService(GoogleServiceBase):
             logger.error(f"Error deleting events in range: {e}")
             raise
 
-    async def resolve_conflict(self, proposed_event, conflicting_events, resolution_action):
+    async def resolve_conflict(self, conflict_data):
         """Resolve calendar conflicts by replacing, deleting, or skipping conflicting events."""
+        
+        # If conflict_data is a dictionary, extract the components
+        if isinstance(conflict_data, dict):
+            proposed_event = conflict_data.get('proposed_event')
+            conflicting_events = conflict_data.get('conflicting_events', [])
+            resolution_action = conflict_data.get('resolution_action') or conflict_data.get('action')
+        else:
+            # Fallback for old-style direct parameters (for backward compatibility)
+            proposed_event = conflict_data
+            conflicting_events = []
+            resolution_action = 'skip'
+        
         if resolution_action == 'replace':
             # Delete all conflicting events
             for event in conflicting_events:

@@ -3,36 +3,36 @@ import sys
 sys.path.append(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))))
 import unittest
 import asyncio
-from google_services.calendar import GoogleCalendarService
+from backend.google_services.calendar import GoogleCalendarService
 import os
 from dotenv import load_dotenv
 from unittest.mock import MagicMock, patch, AsyncMock
 from datetime import datetime, timedelta
-from google_services.auth import get_google_credentials
+from backend.google_services.auth import get_google_credentials
 
 # Optional imports
 try:
-    from google_services.gmail import GmailService
+    from backend.google_services.gmail import GmailService
 except ImportError:
     GmailService = None
 try:
-    from google_services.fit import GoogleFitnessService
+    from backend.google_services.fit import GoogleFitnessService
 except ImportError:
     GoogleFitnessService = None
 try:
-    from google_services.tasks import GoogleTasksService
+    from backend.google_services.tasks import GoogleTasksService
 except ImportError:
     GoogleTasksService = None
 try:
-    from google_services.drive import GoogleDriveService
+    from backend.google_services.drive import GoogleDriveService
 except ImportError:
     GoogleDriveService = None
 try:
-    from google_services.sheets import GoogleSheetsService
+    from backend.google_services.sheets import GoogleSheetsService
 except ImportError:
     GoogleSheetsService = None
 try:
-    from google_services.maps import GoogleMapsService
+    from backend.google_services.maps import GoogleMapsService
 except ImportError:
     GoogleMapsService = None
 
@@ -56,7 +56,7 @@ class TestGoogleServices(unittest.IsolatedAsyncioTestCase):
             "https://www.googleapis.com/auth/spreadsheets",
             "https://www.googleapis.com/auth/tasks"
         ])
-        self.patcher = patch('google_services.auth.get_google_credentials', return_value=self.mock_creds)
+        self.patcher = patch('backend.google_services.auth.get_google_credentials', return_value=self.mock_creds)
         self.patcher.start()
         self.calendar = GoogleCalendarService()
         self.drive = GoogleDriveService() if GoogleDriveService else None
